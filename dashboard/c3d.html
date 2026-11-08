@@ -2806,7 +2806,7 @@ addEventListener('keyup',e=>{WK.keys[e.code]=false});
 addEventListener('blur',()=>{WK.keys={}});
 canvas.addEventListener('pointerdown',e=>{if(takeover&&takeover.kind==='walk'){WK.drag={x:e.clientX,y:e.clientY,id:e.pointerId}}},true);
 addEventListener('pointermove',e=>{if(!WK.drag||!takeover||e.pointerId!==WK.drag.id)return;const dx=e.clientX-WK.drag.x,dy=e.clientY-WK.drag.y;WK.drag.x=e.clientX;WK.drag.y=e.clientY;
-  WK.yaw+=dx*.0042;WK.pitch=clamp(WK.pitch+dy*.0036,-1.2,1.0)});
+  WK.yaw-=dx*.0042;WK.pitch=clamp(WK.pitch-dy*.0036,-1.2,1.0)});
 addEventListener('pointerup',e=>{if(WK.drag&&e.pointerId===WK.drag.id)WK.drag=null});
 PRO.startWalk=startWalk;PRO.WK=WK;
 
