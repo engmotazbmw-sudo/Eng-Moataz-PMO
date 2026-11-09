@@ -3571,7 +3571,7 @@ function startWalk(at){
 }
 function walkTick(now){
   if(!takeover||takeover.kind!=='walk')return;
-  const dt=Math.min(.05,(now-WK.last)/1000);WK.last=now;const k=WK.keys;
+  const dt=Math.min(.05,(now-WK.last)/1000);WK.last=now;const k=WK.keys;if(WK.look&&(WK.look.x||WK.look.y)){WK.yaw-=WK.look.x*2.4*dt;WK.pitch=clamp(WK.pitch-WK.look.y*1.7*dt,-1.2,1.0)}
   let f=(k.KeyW||k.ArrowUp?1:0)-(k.KeyS||k.ArrowDown?1:0)+(-WK.joy.y),s=(k.KeyD?1:0)-(k.KeyA?1:0)+WK.joy.x;
   if(k.ArrowLeft)WK.yaw+=1.6*dt;if(k.ArrowRight)WK.yaw-=1.6*dt;if(k.KeyQ)WK.yaw+=1.6*dt;if(k.KeyE)WK.yaw-=1.6*dt;
   const mag=Math.hypot(f,s);if(mag>1){f/=mag;s/=mag}
@@ -3745,15 +3745,65 @@ document.body.append(dock);
 const chip=document.createElement('div');chip.id='pfChip';chip.setAttribute('aria-live','polite');chip.innerHTML='<span>النوافير</span><b></b><i><u></u><u></u><u></u><u></u></i>';document.body.append(chip);
 const hud=document.createElement('div');hud.id='pwHud';hud.innerHTML=`<div class="in"><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> أو الأسهم للحركة · اسحب للنظر · <kbd>Shift</kbd> للإسراع · <kbd>Esc</kbd> للخروج</span><span class="tch">مشي حر</span><button type="button" id="pwExit">إنهاء المشي</button></div>`;document.body.append(hud);
 const joy=document.createElement('div');joy.id='pwJoy';joy.innerHTML='<b></b>';document.body.append(joy);
-/* v52: sprint toggle for touch devices in free walk */
-{const rb=document.createElement('button');rb.type='button';rb.id='pwRun';rb.setAttribute('aria-pressed','false');
- rb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4" r="2"/><path d="M8 21l3-6 3 2v5M6 12l3-4 4 1 3 3 3 1M11 15l-2-3"/></svg><span>تسريع</span>';
+/* v54: game-style twin sticks for touch devices in free walk (left = move, right = camera) + compact sprint */
+{
+ const gpSvgMove='<svg class="gp-ring" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" class="r1"/><circle cx="50" cy="50" r="36" class="r2"/><path class="ar" d="M50 9l6 8H44zM50 91l6-8H44zM9 50l8-6v12zM91 50l-8-6v12z"/></svg>';
+ const gpSvgLook='<svg class="gp-ring" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" class="r1"/><circle cx="50" cy="50" r="36" class="r2"/><path class="ar" d="M27 34a28 28 0 0 1 46 0" fill="none"/><path class="ar f" d="M73 34l-1-9-7 5z"/><path class="ar" d="M73 66a28 28 0 0 1-46 0" fill="none"/><path class="ar f" d="M27 66l1 9 7-5z"/></svg>';
+ const mkStick=(id,svg,icon,label)=>{const el=document.createElement('div');el.id=id;el.className='gp-stick';el.setAttribute('role','application');el.setAttribute('aria-label',label);
+   el.innerHTML=svg+'<i class="gp-thumb">'+icon+'</i><span class="gp-lbl">'+label+'</span>';document.body.append(el);return el};
+ const mvIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="M9 21l2-6 3 2v4M7 12l3-3 4 1 2 3 3 1"/></svg>';
+ const lkIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>';
+ const gm=mkStick('gpMove',gpSvgMove,mvIcon,'الحركة'),gl=mkStick('gpLook',gpSvgLook,lkIcon,'الكاميرا');
+ WK.look={x:0,y:0};
+ const DZ=.12,curve=v=>{const m=Math.abs(v);if(m<DZ)return 0;const n=(m-DZ)/(1-DZ);return Math.sign(v)*Math.pow(n,1.5)};
+ const bind=(el,apply)=>{const th=el.querySelector('.gp-thumb');let pid=null;
+   const upd=e=>{const r=el.getBoundingClientRect(),R=r.width/2;let x=(e.clientX-r.left-R)/(R*.62),y=(e.clientY-r.top-R)/(R*.62);const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}
+     th.style.transform=`translate(${x*R*.5}px,${y*R*.5}px)`;el.style.setProperty('--gx',x.toFixed(3));el.style.setProperty('--gy',y.toFixed(3));apply(curve(x),curve(y),m)};
+   el.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();pid=e.pointerId;try{el.setPointerCapture(pid)}catch(_){}el.classList.add('on');try{navigator.vibrate&&navigator.vibrate(8)}catch(_){}upd(e)});
+   el.addEventListener('pointermove',e=>{if(e.pointerId===pid)upd(e)});
+   const end=e=>{if(e.pointerId!==pid)return;pid=null;el.classList.remove('on');th.style.transform='';el.style.setProperty('--gx',0);el.style.setProperty('--gy',0);apply(0,0,0)};
+   el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);
+   el.addEventListener('contextmenu',e=>e.preventDefault())};
+ bind(gm,(x,y,m)=>{WK.joy={x,y};gm.classList.toggle('max',m>.97)});
+ bind(gl,(x,y)=>{WK.look={x,y}});
+ const rb=document.createElement('button');rb.type='button';rb.id='pwRun';rb.setAttribute('aria-pressed','false');rb.setAttribute('aria-label','تسريع');
+ rb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>';
  document.body.append(rb);
- const setRun=v=>{WK.run=v;rb.classList.toggle('on',v);rb.setAttribute('aria-pressed',String(v));rb.querySelector('span').textContent=v?'سريع':'تسريع'};
+ const setRun=v=>{WK.run=v;rb.classList.toggle('on',v);rb.setAttribute('aria-pressed',String(v));document.body.classList.toggle('gp-sprint',v)};
  rb.addEventListener('pointerdown',e=>{e.stopPropagation()});
- rb.addEventListener('click',e=>{e.preventDefault();setRun(!WK.run)});
- const st=document.createElement('style');st.textContent='#pwRun{position:fixed;z-index:42;inset-inline-end:22px;bottom:calc(96px + env(safe-area-inset-bottom,0px));width:78px;height:78px;border-radius:50%;display:none;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:2px solid rgba(255,255,255,.6);background:rgba(16,24,32,.45);color:#fff;font:inherit;font-size:12px;font-weight:800;touch-action:manipulation;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(4px);cursor:pointer;transition:background .2s,transform .15s}#pwRun svg{width:28px;height:28px}#pwRun.on{background:linear-gradient(135deg,#E4C27D,#A9853F);color:#1b1404;border-color:#F1D9A0;box-shadow:0 0 0 6px rgba(228,194,125,.25)}#pwRun:active{transform:scale(.94)}body.pro-walk.coarse #pwRun{display:flex;visibility:visible!important}@media (max-height:520px) and (orientation:landscape){#pwRun{width:64px;height:64px;bottom:calc(70px + env(safe-area-inset-bottom,0px))}}';
- document.head.append(st);}
+ rb.addEventListener('click',e=>{e.preventDefault();setRun(!WK.run);try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}});
+ const st=document.createElement('style');st.textContent=`
+ #pwJoy{display:none!important}
+ .gp-stick{position:fixed;z-index:42;bottom:calc(92px + env(safe-area-inset-bottom,0px));width:136px;height:136px;border-radius:50%;display:none;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
+   background:radial-gradient(circle at 50% 45%,rgba(30,44,40,.30),rgba(6,14,12,.62) 70%);box-shadow:0 10px 28px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.18),inset 0 2px 10px rgba(255,255,255,.08);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:box-shadow .2s,transform .2s;visibility:visible!important}
+ #gpMove{left:calc(20px + env(safe-area-inset-left,0px))} #gpLook{right:calc(20px + env(safe-area-inset-right,0px))}
+ .gp-ring{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+ .gp-ring .r1{fill:none;stroke:rgba(255,255,255,.28);stroke-width:1.6}
+ .gp-ring .r2{fill:none;stroke:rgba(228,194,125,.35);stroke-width:1;stroke-dasharray:2 4}
+ .gp-ring .ar{fill:rgba(255,255,255,.55);stroke:rgba(255,255,255,.55);stroke-width:2.2;stroke-linecap:round;transition:fill .15s,stroke .15s}
+ .gp-ring .ar.f{stroke:none}
+ .gp-stick.on{box-shadow:0 10px 30px rgba(0,0,0,.4),0 0 0 3px rgba(228,194,125,.55),0 0 26px rgba(228,194,125,.45),inset 0 0 0 1px rgba(255,255,255,.25)}
+ .gp-stick.on .ar{fill:#F1D9A0;stroke:#F1D9A0}
+ .gp-thumb{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px;border-radius:50%;display:grid;place-items:center;color:#10221c;pointer-events:none;
+   background:radial-gradient(circle at 35% 30%,#fff 0%,#f4ead2 38%,#d8b86e 100%);box-shadow:0 6px 14px rgba(0,0,0,.45),inset 0 -3px 6px rgba(0,0,0,.18),inset 0 2px 3px rgba(255,255,255,.8);transition:transform .12s cubic-bezier(.2,.8,.2,1)}
+ .gp-stick.on .gp-thumb{transition:none;box-shadow:0 0 0 4px rgba(241,217,160,.35),0 8px 18px rgba(0,0,0,.5),inset 0 -3px 6px rgba(0,0,0,.18)}
+ .gp-thumb svg{width:28px;height:28px}
+ .gp-lbl{position:absolute;left:50%;bottom:-24px;transform:translateX(-50%);font-size:11.5px;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7);white-space:nowrap;letter-spacing:.02em;pointer-events:none}
+ #gpMove.max .r1{stroke:rgba(241,217,160,.85)}
+ #pwRun{position:fixed;z-index:43;left:calc(124px + env(safe-area-inset-left,0px));bottom:calc(206px + env(safe-area-inset-bottom,0px));width:46px;height:46px;border-radius:50%;display:none;align-items:center;justify-content:center;padding:0;
+   border:1.5px solid rgba(255,255,255,.55);background:rgba(10,20,18,.55);color:#fff;touch-action:manipulation;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(6px);cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.35);transition:background .2s,transform .15s,box-shadow .2s;visibility:visible!important}
+ #pwRun svg{width:22px;height:22px}
+ #pwRun.on{background:linear-gradient(135deg,#F1D9A0,#B08A3E);color:#1b1404;border-color:#F1D9A0;box-shadow:0 0 0 4px rgba(228,194,125,.3),0 0 18px rgba(228,194,125,.55)}
+ #pwRun:active{transform:scale(.9)}
+ body.pro-walk.coarse .gp-stick{display:block} body.pro-walk.coarse #pwRun{display:flex}
+ body.pro-walk.coarse #pwHud{bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+ body.gp-sprint #gpMove .gp-thumb{background:radial-gradient(circle at 35% 30%,#fff 0%,#F1D9A0 40%,#B08A3E 100%)}
+ @media (max-height:520px) and (orientation:landscape){
+   .gp-stick{width:112px;height:112px;bottom:calc(46px + env(safe-area-inset-bottom,0px))} .gp-thumb{width:52px;height:52px;margin:-26px}
+   #pwRun{left:calc(140px + env(safe-area-inset-left,0px));bottom:calc(70px + env(safe-area-inset-bottom,0px));width:42px;height:42px}
+   .gp-lbl{display:none}}
+ `;document.head.append(st);
+}
 const cui=document.createElement('div');cui.id='pcUi';cui.innerHTML=`<div class="lb t"></div><div class="lb b"></div><div id="pcCap"><small>المنطقة المركزية · حائل</small><b></b><span></span></div><div class="pr"><div id="pcBar"></div></div><div class="ctl"><button type="button" id="pcPause">إيقاف مؤقت</button><button type="button" class="x" id="pcExit">خروج ✕</button></div>`;document.body.append(cui);
 const fade=document.createElement('div');fade.id='pcFade';document.body.append(fade);
 document.getElementById('pwExit').onclick=()=>release();
@@ -4957,6 +5007,168 @@ try{sun.position.set(-150,190,175);sun.target.position.set(60,0,30);sun.target.u
   setTime(night);
 }catch(e){console.warn('v44 poles',e)}})();
 
+/* ===== v54 · PIMO 3D guide: avatar in the scene + spoken summary after the intro ===== */
+try{(function(){
+  const EMB=/^c3d\|/.test(window.name||'');
+  const S=1/M_PER_U;                       // metres -> units
+  const POS={x:100,z:124};                 // just inside the main gate, facing the plaza
+  const SUB=[
+    [0.2,'هلا والله وحيّاك في المنطقة المركزية بحائل!'],
+    [3.3,'أنا بيمو، وبعطيك نبذة سريعة.'],
+    [5.6,'المنطقة المركزية هي قلب حائل الجديد،'],
+    [8.4,'افتُتحت في 28 أكتوبر 2026.'],
+    [11.6,'تصميمها شعاعي، ومحاورها كلها تلتقي في ساحة دائرية،'],
+    [15.3,'وسطها حلقات الماء والنخيل.'],
+    [17.4,'وحولها برج حائل، المعلم الأبرز، والمسرح المكشوف،'],
+    [21.2,'والمسجد، وسماح سنتر،'],
+    [23.0,'ومعها محال ومطاعم ومقاهي، ومساحات للفعاليات المجتمعية.'],
+    [28.0,'تقدر تتجوّل بالمشي الحر، أو تسألني عن أي معلم بالبحث الصوتي،'],
+    [32.6,'وأرسم لك المسار من مكانك.'],
+    [35.0,'حيّاك الله، واستمتع بالجولة!']];
+
+  /* ---------- avatar ---------- */
+  const G=new THREE.Group();G.name='pimo';G.position.set(POS.x,Y,POS.z);scene.add(G);
+  const body=new THREE.Group();G.add(body);
+  const white=new THREE.MeshStandardMaterial({color:'#f6f4ee',roughness:.28,metalness:.15});
+  const green=new THREE.MeshStandardMaterial({color:'#0b5c46',roughness:.35,metalness:.25});
+  const gold=new THREE.MeshStandardMaterial({color:'#d9b46a',roughness:.25,metalness:.75,emissive:'#4a3510',emissiveIntensity:.35});
+  const glass=new THREE.MeshStandardMaterial({color:'#0a1714',roughness:.08,metalness:.6});
+  const glow=c=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:1,toneMapped:false});
+  const m=x=>x*S;
+  // torso (lathe) + gold collar + green sash
+  const prof=[[0,0],[.20,.02],[.30,.12],[.34,.36],[.33,.62],[.29,.86],[.21,1.0],[.14,1.06],[0,1.07]].map(p=>new THREE.Vector2(m(p[0]),m(p[1])));
+  const torso=new THREE.Mesh(new THREE.LatheGeometry(prof,40),white);torso.position.y=m(.55);body.add(torso);
+  const sash=new THREE.Mesh(new THREE.TorusGeometry(m(.335),m(.035),10,48),green);sash.rotation.x=Math.PI/2;sash.position.y=m(.55+.42);body.add(sash);
+  const collar=new THREE.Mesh(new THREE.TorusGeometry(m(.2),m(.03),10,40),gold);collar.rotation.x=Math.PI/2;collar.position.y=m(.55+1.02);body.add(collar);
+  // chest badge (PMO)
+  const badgeTex=(()=>{const c=document.createElement('canvas');c.width=256;c.height=256;const x=c.getContext('2d');
+    const g=x.createRadialGradient(128,110,10,128,128,128);g.addColorStop(0,'#127a5d');g.addColorStop(1,'#063f30');x.fillStyle=g;x.beginPath();x.arc(128,128,124,0,7);x.fill();
+    x.lineWidth=10;x.strokeStyle='#e4c27d';x.stroke();x.fillStyle='#f1d9a0';x.font='bold 84px Tajawal,Cairo,Arial';x.textAlign='center';x.textBaseline='middle';x.fillText('PMO',128,134);
+    const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t})();
+  const badge=new THREE.Mesh(new THREE.CircleGeometry(m(.11),40),new THREE.MeshBasicMaterial({map:badgeTex,transparent:true,toneMapped:false}));badge.position.set(0,m(.55+.68),m(.335));body.add(badge);
+  // head
+  const head=new THREE.Group();head.position.y=m(1.98);body.add(head);
+  head.add(new THREE.Mesh(new THREE.SphereGeometry(m(.36),40,30),white));
+  const visor=new THREE.Mesh(new THREE.SphereGeometry(m(.33),40,24,Math.PI*.14,Math.PI*.72,Math.PI*.3,Math.PI*.42),glass);visor.position.z=m(.045);head.add(visor);
+  const eyeMat=glow('#7ef7d6');const eyes=[];
+  [-1,1].forEach(sx=>{const e=new THREE.Mesh(new THREE.SphereGeometry(m(.055),18,12),eyeMat);e.scale.set(1,1.35,.4);e.position.set(sx*m(.12),m(.04),m(.36));head.add(e);eyes.push(e)});
+  const mouth=new THREE.Mesh(new THREE.BoxGeometry(m(.16),m(.022),m(.01)),eyeMat);mouth.position.set(0,m(-.11),m(.355));head.add(mouth);
+  [-1,1].forEach(sx=>{const ear=new THREE.Mesh(new THREE.CylinderGeometry(m(.09),m(.09),m(.06),24),gold);ear.rotation.z=Math.PI/2;ear.position.x=sx*m(.36);head.add(ear)});
+  const ant=new THREE.Mesh(new THREE.CylinderGeometry(m(.012),m(.012),m(.18),8),gold);ant.position.y=m(.44);head.add(ant);
+  const tip=new THREE.Mesh(new THREE.SphereGeometry(m(.045),16,12),glow('#ffd889'));tip.position.y=m(.55);head.add(tip);
+  // floating hands
+  const hands=[-1,1].map(sx=>{const h=new THREE.Mesh(new THREE.SphereGeometry(m(.085),20,14),white);h.position.set(sx*m(.5),m(1.05),m(.08));body.add(h);
+    const r=new THREE.Mesh(new THREE.TorusGeometry(m(.09),m(.016),8,24),gold);r.position.copy(h.position);r.rotation.y=Math.PI/2;body.add(r);return [h,r]});
+  // ground ring + holo beam + light
+  const ringTex=(()=>{const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');const g=x.createRadialGradient(128,128,10,128,128,128);
+    g.addColorStop(0,'rgba(126,247,214,.55)');g.addColorStop(.55,'rgba(126,247,214,.18)');g.addColorStop(.78,'rgba(228,194,125,.9)');g.addColorStop(.84,'rgba(228,194,125,.15)');g.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g;x.fillRect(0,0,256,256);return new THREE.CanvasTexture(c)})();
+  const pad=new THREE.Mesh(new THREE.PlaneGeometry(m(2.6),m(2.6)),new THREE.MeshBasicMaterial({map:ringTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+  pad.rotation.x=-Math.PI/2;pad.position.y=m(.03);G.add(pad);
+  const beamTex=(()=>{const c=document.createElement('canvas');c.width=4;c.height=128;const x=c.getContext('2d');const g=x.createLinearGradient(0,0,0,128);
+    g.addColorStop(0,'rgba(126,247,214,0)');g.addColorStop(1,'rgba(126,247,214,.55)');x.fillStyle=g;x.fillRect(0,0,4,128);return new THREE.CanvasTexture(c)})();
+  const beam=new THREE.Mesh(new THREE.CylinderGeometry(m(.95),m(1.05),m(2.9),40,1,true),new THREE.MeshBasicMaterial({map:beamTex,transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,toneMapped:false,opacity:.55}));
+  beam.position.y=m(1.45);G.add(beam);
+  const pl=new THREE.PointLight('#9ff5dc',.9,m(9),2);pl.position.y=m(1.6);G.add(pl);
+  // name tag
+  const tag=(()=>{const c=document.createElement('canvas');c.width=512;c.height=128;const x=c.getContext('2d');
+    x.fillStyle='rgba(6,40,31,.86)';const r=56;x.beginPath();x.moveTo(r,8);x.arcTo(504,8,504,120,r);x.arcTo(504,120,8,120,r);x.arcTo(8,120,8,8,r);x.arcTo(8,8,504,8,r);x.fill();
+    x.lineWidth=5;x.strokeStyle='#e4c27d';x.stroke();x.fillStyle='#fff';x.font='bold 58px Tajawal,Cairo,Arial';x.textAlign='center';x.textBaseline='middle';x.direction='rtl';x.fillText('بيمو · مساعدك',256,68);
+    const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,toneMapped:false}));
+    sp.scale.set(m(1.5),m(.375),1);sp.position.y=m(2.85);sp.renderOrder=20;return sp})();G.add(tag);
+  G.traverse(o=>{if(o.isMesh){o.castShadow=o.material===white||o.material===gold||o.material===green;o.frustumCulled=false}});
+
+  /* ---------- UI: subtitle card ---------- */
+  const ui=document.createElement('div');ui.id='pimoCard';ui.hidden=true;ui.dir='rtl';
+  ui.innerHTML='<div class="pc-av"><i></i><i></i><b></b></div><div class="pc-tx"><small>بيمو · مكتب إدارة المشاريع PMO</small><p></p><div class="pc-bar"><span></span></div></div>'+
+    '<button type="button" class="pc-b pc-play" aria-label="إيقاف مؤقت">❚❚</button><button type="button" class="pc-b pc-x" aria-label="إغلاق">✕</button>';
+  document.body.append(ui);
+  const chip=document.createElement('button');chip.type='button';chip.id='pimoChip';chip.hidden=true;chip.innerHTML='<span class="pc-av sm"><i></i><i></i><b></b></span><span>اسمع بيمو</span>';document.body.append(chip);
+  const st=document.createElement('style');st.textContent=`
+  #pimoCard{position:fixed;z-index:60;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(640px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:20px;
+    background:linear-gradient(135deg,rgba(6,46,36,.92),rgba(3,26,20,.92));border:1px solid rgba(228,194,125,.55);box-shadow:0 18px 44px rgba(0,0,0,.45);color:#fff;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);animation:pcIn .45s cubic-bezier(.2,.8,.2,1)}
+  #pimoCard[hidden],#pimoChip[hidden]{display:none}
+  @keyframes pcIn{from{opacity:0;transform:translate(-50%,16px)}}
+  .pc-av{position:relative;flex:0 0 54px;height:54px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,#e9e4d6 60%,#cfc6ad);box-shadow:inset 0 0 0 3px #d9b46a}
+  .pc-av::after{content:'';position:absolute;left:9px;right:9px;top:15px;height:20px;border-radius:12px;background:#0a1714}
+  .pc-av i{position:absolute;z-index:1;top:20px;width:7px;height:10px;border-radius:4px;background:#7ef7d6;box-shadow:0 0 8px #7ef7d6}
+  .pc-av i:first-child{left:17px}.pc-av i:nth-child(2){right:17px}
+  .pc-av b{position:absolute;z-index:1;left:50%;top:38px;width:16px;height:3px;margin-left:-8px;border-radius:2px;background:#7ef7d6;transform:scaleY(var(--mo,1))}
+  .pc-av.sm{flex:0 0 30px;width:30px;height:30px;display:inline-block;transform:scale(.56);transform-origin:center;margin:-12px -8px}
+  .pc-tx{flex:1;min-width:0}
+  .pc-tx small{display:block;color:#E4C27D;font-weight:800;font-size:12px;margin-bottom:2px}
+  .pc-tx p{margin:0;font-size:16px;line-height:1.65;font-weight:700;min-height:1.65em}
+  .pc-bar{height:3px;border-radius:2px;background:rgba(255,255,255,.15);margin-top:6px;overflow:hidden}.pc-bar span{display:block;height:100%;width:0;background:linear-gradient(90deg,#E4C27D,#7ef7d6)}
+  .pc-b{flex:0 0 38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);color:#fff;font-size:13px;cursor:pointer}
+  #pimoChip{position:fixed;z-index:59;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:6px;padding:8px 16px 8px 12px;border-radius:999px;border:1px solid rgba(228,194,125,.6);
+    background:rgba(6,46,36,.9);color:#fff;font:inherit;font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 10px 24px rgba(0,0,0,.35)}
+  body.pro-walk #pimoCard,body.pro-walk #pimoChip,body.pro-cine #pimoChip{display:none!important}
+  @media (max-width:560px){.pc-tx p{font-size:14.5px}.pc-av{flex-basis:46px;height:46px}.pc-av::after{top:12px;height:17px;left:8px;right:8px}.pc-av i{top:16px}.pc-av i:first-child{left:14px}.pc-av i:nth-child(2){right:14px}.pc-av b{top:32px}}
+  `;document.head.append(st);
+  const pTx=ui.querySelector('p'),pBar=ui.querySelector('.pc-bar span'),pAv=ui.querySelector('.pc-av'),bPlay=ui.querySelector('.pc-play');
+
+  /* ---------- audio (standalone page plays it; inside the dashboard the parent page plays it) ---------- */
+  const SRC=window.__PIMO_A||'pimo_central.mp3';
+  let au=null,talking=false,t0=0,tNow=0,dur=38.9,paused=false,an=null,buf=null;
+  const subAt=t=>{let s='';for(const r of SUB)if(t>=r[0]-.1)s=r[1];return s};
+  const setT=t=>{tNow=t;const s=subAt(t);if(pTx.textContent!==s)pTx.textContent=s;pBar.style.width=Math.min(100,t/dur*100)+'%'};
+  function stop(showChip){talking=false;paused=false;ui.hidden=true;if(au){try{au.pause()}catch(e){}}if(EMB)try{parent.postMessage({ovAudio:1,a:'pimoStop'},'*')}catch(e){}chip.hidden=!showChip}
+  function play(){
+    chip.hidden=true;ui.hidden=false;talking=true;paused=false;bPlay.textContent='❚❚';setT(0);t0=performance.now();
+    if(!document.body.classList.contains('pro-walk')&&!document.body.classList.contains('pro-cine')){
+      const d=new THREE.Vector3(POS.x,0,POS.z).normalize();
+      try{flyTo(new THREE.Vector3(POS.x+d.x*m(7.5),Y+m(2.7),POS.z+d.z*m(7.5)),new THREE.Vector3(POS.x-d.x*m(1.5),Y+m(1.55),POS.z-d.z*m(1.5)),2400)}catch(e){}
+    }
+    if(EMB){try{parent.postMessage({ovAudio:1,a:'pimo'},'*')}catch(e){}return}
+    if(!au){au=new Audio(SRC);au.preload='auto';au.addEventListener('ended',()=>stop(true));au.addEventListener('loadedmetadata',()=>{if(au.duration)dur=au.duration})}
+    try{au.currentTime=0}catch(e){}
+    const p=au.play();if(p&&p.catch)p.catch(()=>{talking=true}); // no sound allowed yet: subtitles still run, sound joins on first tap
+  }
+  if(!EMB){const kick=()=>{if(talking&&au&&au.paused&&!paused){try{au.currentTime=tNow}catch(e){}au.play().catch(()=>{})}};
+    ['pointerup','touchend','click','keydown'].forEach(ev=>addEventListener(ev,kick,true))}
+  addEventListener('message',e=>{const d=e.data;if(!d||!d.pimo)return;
+    if(d.pimo==='t'){tNow=d.t;tick.lm=performance.now();if(d.d)dur=d.d}else if(d.pimo==='end'){stop(true)}});
+  bPlay.onclick=()=>{if(!talking)return;paused=!paused;bPlay.textContent=paused?'▶':'❚❚';
+    if(EMB){try{parent.postMessage({ovAudio:1,a:paused?'pimoPause':'pimoResume'},'*')}catch(e){}}else if(au){paused?au.pause():au.play().catch(()=>{})}};
+  ui.querySelector('.pc-x').onclick=()=>stop(true);
+  chip.onclick=()=>play();
+  window.PIMO_GUIDE={play,stop};
+
+  /* ---------- animation ---------- */
+  let blink=0,last=performance.now();
+  function tick(now){
+    const dt=Math.min(.05,(now-last)/1000);last=now;
+    if(talking&&!paused){
+      const wall=(now-t0)/1000;if(!EMB&&au&&!au.paused&&au.currentTime>0)setT(au.currentTime);else if(EMB&&now-(tick.lm||0)<1500)setT(tNow);else setT(wall);
+      if(wall>dur+1.5&&(EMB?now-(tick.lm||0)>1500:(!au||au.paused||!(au.currentTime>0))))stop(true);
+    }
+    let lv=0;
+    if(talking&&!paused){const playing=EMB?true:(au&&!au.paused);if(playing)lv=Math.max(0,.3+.45*Math.sin(now/83)*Math.sin(now/31)+.2*Math.sin(now/211))}
+    mouth.scale.set(1-lv*.35,1+lv*7,1);pAv.style.setProperty('--mo',(1+lv*3).toFixed(2));
+    blink-=dt;if(blink<-.12)blink=2.5+Math.random()*3;const bs=blink<0?.15:1;eyes.forEach(e=>e.scale.y=1.35*bs);
+    const tt=now/1000;body.position.y=m(.12)+Math.sin(tt*1.6)*m(.06);
+    hands[0][0].position.y=hands[0][1].position.y=m(1.05)+Math.sin(tt*2.1)*m(.05)+(talking?Math.sin(tt*5)*m(.04):0);
+    hands[1][0].position.y=hands[1][1].position.y=m(1.05)+Math.cos(tt*2.1)*m(.05);
+    const dx=camera.position.x-G.position.x,dz=camera.position.z-G.position.z;const want=Math.atan2(dx,dz);let dy=want-body.rotation.y;dy=Math.atan2(Math.sin(dy),Math.cos(dy));body.rotation.y+=dy*Math.min(1,dt*4);
+    head.rotation.x=Math.sin(tt*.9)*.05+(talking?Math.sin(tt*3.2)*.04:0);
+    pad.material.opacity=.75+.25*Math.sin(tt*2.4);tip.scale.setScalar(1+.25*Math.sin(tt*4));beam.material.opacity=.38+.12*Math.sin(tt*1.7)+(talking?lv*.25:0);
+    if(talking&&now-(tick.ki||0)>1000){tick.ki=now;try{dispatchEvent(new Event('pointermove'))}catch(e){}}
+    const near=Math.hypot(dx,dz)<m(120);
+    if(near||talking)needs=Math.max(needs,1);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  /* ---------- start once the opening (video + title) is over ---------- */
+  let started=false;
+  const introOver=()=>{if(document.getElementById('poster'))return false;const i=document.getElementById('intro');if(!i)return true;const cs=getComputedStyle(i);return i.hidden||cs.display==='none'||cs.visibility==='hidden'||+cs.opacity<.05||!i.isConnected};
+  const ready=EMB?Promise.resolve(!!window.__PIMO_EMB_OK):(window.__PIMO_A?Promise.resolve(true):fetch(SRC,{method:'HEAD',cache:'no-store'}).then(r=>r.ok).catch(()=>false));
+  ready.then(ok=>{if(!ok&&EMB){return new Promise(res=>{const h=e=>{if(e.data&&e.data.pimoOk!==undefined){removeEventListener('message',h);res(!!e.data.pimoOk)}};addEventListener('message',h);try{parent.postMessage({ovAudio:1,a:'pimoAsk'},'*')}catch(_){}setTimeout(()=>res(false),4000)})}return ok}).then(ok=>{
+    if(!ok){G.visible=false;return}
+    const iv=setInterval(()=>{if(started)return clearInterval(iv);if(introOver()){started=true;clearInterval(iv);setTimeout(play,1400)}},500);
+  });
+})()}catch(e){console.warn('PIMO guide',e)}
+
 applyLang();openHash();requestAnimationFrame(loop);
 })();
 </script>
@@ -5377,4 +5589,4 @@ html,body{max-width:100%;overflow-x:hidden}
  #intro.cx .brandc,#intro.cx #introSkip{top:14px}
  #vsPanel .vs-card{max-height:calc(100dvh - 24px);overflow:auto}
 }
-</style><script>(function(){var T='مكتب إدارة المشاريع PMO – المنطقة المركزية';function f(){if(document.title!==T)document.title=T}f();var n=0,i=setInterval(function(){f();if(++n>40)clearInterval(i)},500);addEventListener("load",f)})()</script><script>(function(){var B='20261109224734';try{fetch('../version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){if(j&&j.v&&j.v!==B){var k='pmoReload'+j.v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1')}catch(e){}location.reload()}}).catch(function(){})}catch(e){}})()</script></body></html>
+</style><script>(function(){var T='مكتب إدارة المشاريع PMO – المنطقة المركزية';function f(){if(document.title!==T)document.title=T}f();var n=0,i=setInterval(function(){f();if(++n>40)clearInterval(i)},500);addEventListener("load",f)})()</script><script>(function(){var B='20261109231553';try{fetch('../version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){if(j&&j.v&&j.v!==B){var k='pmoReload'+j.v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1')}catch(e){}location.reload()}}).catch(function(){})}catch(e){}})()</script></body></html>
