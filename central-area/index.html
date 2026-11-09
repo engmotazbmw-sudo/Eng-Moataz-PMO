@@ -1237,7 +1237,7 @@ body.tour #intBadge,body.tour .askloc{display:none!important}
   function setSnd(){var b=$('ovSnd');b.classList.toggle('un',!V.muted);b.querySelector('span').textContent=V.muted?'تشغيل الصوت':'كتم الصوت'}
   function start(){P.classList.add('play');V.muted=false;V.volume=1;setSnd();var p=V.play();
     if(p&&p.catch)p.catch(function(){V.muted=true;setSnd();var p2=V.play();if(p2&&p2.catch)p2.catch(function(){$('ovPlay').hidden=false})})}
-  var unm=function(){if(!ended&&V.muted&&!V.paused){V.muted=false;setSnd()}};['pointerdown','keydown','touchstart'].forEach(function(ev){addEventListener(ev,unm,{once:true,capture:true})});
+  var unm=function(){if(!ended&&V.muted&&!V.paused){V.muted=false;setSnd()}};(function(){var evs=['pointerup','touchend','click','keydown','mousedown'];function h(e){if(e&&e.target&&e.target.closest&&e.target.closest('#ovSnd')){off();return}off();unm()}function off(){evs.forEach(function(x){removeEventListener(x,h,true)})}evs.forEach(function(x){addEventListener(x,h,true)})})();
   $('ovPlay').onclick=function(){this.hidden=true;V.muted=false;$('ovSnd').classList.add('un');$('ovSnd').querySelector('span').textContent='كتم الصوت';start()};
   $('ovSnd').onclick=function(e){e.stopPropagation();V.muted=!V.muted;setSnd();if(V.paused&&!ended)V.play()};
   function tick(){if(done)return;var t=V.currentTime||0,d=V.duration||16;
@@ -5377,4 +5377,4 @@ html,body{max-width:100%;overflow-x:hidden}
  #intro.cx .brandc,#intro.cx #introSkip{top:14px}
  #vsPanel .vs-card{max-height:calc(100dvh - 24px);overflow:auto}
 }
-</style><script>(function(){var T='مكتب إدارة المشاريع PMO – المنطقة المركزية';function f(){if(document.title!==T)document.title=T}f();var n=0,i=setInterval(function(){f();if(++n>40)clearInterval(i)},500);addEventListener("load",f)})()</script><script>(function(){var B='20261109030624';try{fetch('../version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){if(j&&j.v&&j.v!==B){var k='pmoReload'+j.v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1')}catch(e){}location.reload()}}).catch(function(){})}catch(e){}})()</script></body></html>
+</style><script>(function(){var T='مكتب إدارة المشاريع PMO – المنطقة المركزية';function f(){if(document.title!==T)document.title=T}f();var n=0,i=setInterval(function(){f();if(++n>40)clearInterval(i)},500);addEventListener("load",f)})()</script><script>(function(){var B='20261109224734';try{fetch('../version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){if(j&&j.v&&j.v!==B){var k='pmoReload'+j.v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1')}catch(e){}location.reload()}}).catch(function(){})}catch(e){}})()</script></body></html>

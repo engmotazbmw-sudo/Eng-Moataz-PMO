@@ -450,7 +450,7 @@ body.tour #intBadge,body.tour .askloc{display:none!important}
     if(EMB){V.muted=true;setSnd();var p0=V.play();if(p0&&p0.then)p0.then(function(){$('ovPlay').hidden=true},function(){$('ovPlay').hidden=false});return}
     V.muted=false;V.volume=1;setSnd();var p=V.play();
     if(p&&p.catch)p.catch(function(){V.muted=true;setSnd();var p2=V.play();if(p2&&p2.catch)p2.catch(function(){$('ovPlay').hidden=false})})}
-  var unm=function(){if(ended)return;if(EMB){if(AM){AM=false;post({a:'mute',m:false});setSnd()}}else if(V.muted&&!V.paused){V.muted=false;setSnd()}};['pointerdown','keydown','touchstart'].forEach(function(ev){addEventListener(ev,unm,{once:true,capture:true})});
+  var unm=function(){if(ended)return;if(EMB){if(AM){AM=false;post({a:'mute',m:false});setSnd()}}else if(V.muted&&!V.paused){V.muted=false;setSnd()}};(function(){var evs=['pointerup','touchend','click','keydown','mousedown'];function h(e){if(e&&e.target&&e.target.closest&&e.target.closest('#ovSnd')){off();return}off();unm()}function off(){evs.forEach(function(x){removeEventListener(x,h,true)})}evs.forEach(function(x){addEventListener(x,h,true)})})();
   $('ovPlay').onclick=function(){this.hidden=true;AM=false;start()};
   $('ovSnd').onclick=function(e){e.stopPropagation();if(EMB){AM=!AM;post({a:'mute',m:AM,t:V.currentTime||0})}else{V.muted=!V.muted;if(V.paused&&!ended)V.play()}setSnd()};
   function tick(){if(done)return;var t=V.currentTime||0,d=V.duration||16;
