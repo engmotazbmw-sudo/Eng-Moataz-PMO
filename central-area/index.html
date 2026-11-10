@@ -3594,7 +3594,7 @@ function walkTick(now){
   let f=(k.KeyW||k.ArrowUp?1:0)-(k.KeyS||k.ArrowDown?1:0)+(-WK.js.y),s=(k.KeyD?1:0)-(k.KeyA?1:0)+WK.js.x;
   if(k.ArrowLeft)WK.yaw+=1.6*dt;if(k.ArrowRight)WK.yaw-=1.6*dt;if(k.KeyQ)WK.yaw+=1.6*dt;if(k.KeyE)WK.yaw-=1.6*dt;
   const mag=Math.hypot(f,s);if(mag>1){f/=mag;s/=mag}
-  const sp=(k.ShiftLeft||k.ShiftRight||WK.run?5.5:2.1)/UPU*1.08;
+  const sp=(k.ShiftLeft||k.ShiftRight||WK.run?9.0:3.6)/UPU*1.08;
   if(mag>.01){const fx=-Math.sin(WK.yaw),fz=-Math.cos(WK.yaw),rx=Math.cos(WK.yaw),rz=-Math.sin(WK.yaw);
     const dx=(fx*f+rx*s)*sp*dt*1.8,dz=(fz*f+rz*s)*sp*dt*1.8,p=camera.position;
     if(free(p.x+dx,p.z+dz)){p.x+=dx;p.z+=dz}else if(free(p.x+dx,p.z)){p.x+=dx}else if(free(p.x,p.z+dz)){p.z+=dz}
@@ -5048,6 +5048,40 @@ try{(function(){
   /* ---------- avatar: Saudi PMO guide (thobe, shemagh, agal, lanyard) with a photo face and lip-sync ---------- */
   const G=new THREE.Group();G.name='pimo';G.position.set(POS.x,Y,POS.z);scene.add(G);
   const body=new THREE.Group();G.add(body);
+  /* v58 · PIMO as the generated 3D character (GLB) – procedural figure kept only as a fallback */
+  window.__pimoU={jaw:{value:0},nod:{value:0},turn:{value:0}};
+  (async()=>{try{await new Promise(r=>setTimeout(r,0));
+    const SRC=['pimo_3d.glb','https://d8j0ntlcm91z4.cloudfront.net/user_3KM9NLRGvyvuvBNocBaSfFXxrMn/hf_20261110_210010_e5866475-0848-45e1-a6cd-a5d96cf5f370.glb'];
+    let buf=null;if(window.__PIMO_GLB){const b=atob(window.__PIMO_GLB),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);buf=a.buffer}
+    for(const u of SRC){if(buf)break;try{const r=await fetch(u,{cache:'force-cache'});if(r.ok){const b=await r.arrayBuffer();if(b.byteLength>1000&&new DataView(b).getUint32(0,true)===0x46546C67)buf=b}}catch(e){}}
+    if(!buf)return;
+    const dv=new DataView(buf),jl=dv.getUint32(12,true),J=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,20,jl))),B0=20+jl+8;
+    const acc=i=>{const a=J.accessors[i],v=J.bufferViews[a.bufferView],o=B0+(v.byteOffset||0)+(a.byteOffset||0),n=a.count*({SCALAR:1,VEC2:2,VEC3:3,VEC4:4}[a.type]);
+      const C={5126:Float32Array,5125:Uint32Array,5123:Uint16Array,5121:Uint8Array}[a.componentType];return new C(buf.slice(o,o+n*C.BYTES_PER_ELEMENT))};
+    const pr=J.meshes[0].primitives[0],g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.BufferAttribute(acc(pr.attributes.POSITION),3));
+    if(pr.attributes.TEXCOORD_0!=null)g.setAttribute('uv',new THREE.BufferAttribute(acc(pr.attributes.TEXCOORD_0),2));
+    if(pr.indices!=null)g.setIndex(new THREE.BufferAttribute(acc(pr.indices),1));
+    g.computeBoundingBox();const bb=g.boundingBox,k=m(1.75)/(bb.max.y-bb.min.y);
+    g.translate(-(bb.min.x+bb.max.x)/2,-bb.min.y,-(bb.min.z+bb.max.z)/2);g.scale(k,k,k);g.computeVertexNormals();g.computeBoundingSphere();
+    // mouth & neck in model space (front faces +z)
+    const P=g.attributes.position,MY=m(1.535),NY=m(1.43);let MZ=-1e9;for(let i=0;i<P.count;i++){const x=P.getX(i),y=P.getY(i),z=P.getZ(i);if(Math.abs(x)<m(.03)&&Math.abs(y-MY)<m(.025)&&z>MZ)MZ=z}
+    if(MZ<-1e8)MZ=m(.1);
+    const mat=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.82,metalness:0});
+    const im=J.images&&J.images[0];if(im){const v=J.bufferViews[im.bufferView],o=B0+(v.byteOffset||0);const url=URL.createObjectURL(new Blob([buf.slice(o,o+v.byteLength)],{type:im.mimeType||'image/png'}));
+      const img=new Image();img.onload=()=>{const t=new THREE.Texture(img);t.flipY=false;t.encoding=THREE.sRGBEncoding;t.anisotropy=4;t.needsUpdate=true;mat.map=t;mat.needsUpdate=true;try{needs=Math.max(needs,2)}catch(e){}};img.src=url}
+    const U=window.__pimoU,f=v=>v.toFixed(4);
+    mat.onBeforeCompile=sh=>{sh.uniforms.uJaw=U.jaw;sh.uniforms.uNod=U.nod;sh.uniforms.uTurn=U.turn;
+      sh.vertexShader='uniform float uJaw;uniform float uNod;uniform float uTurn;\n'+sh.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+      { vec3 d=(transformed-vec3(0.,${f(MY)},${f(MZ)}))/vec3(${f(m(.05))},${f(m(.028))},${f(m(.05))});float fj=exp(-dot(d,d)*1.6);
+        float below=step(transformed.y,${f(MY+m(.004))});transformed.y-=uJaw*fj*below*${f(m(.016))};
+        float hy=${f(NY)};if(transformed.y>hy){float w=smoothstep(hy,hy+${f(m(.09))},transformed.y);vec3 p=transformed-vec3(0.,hy,0.);
+          float cy=cos(uTurn*w),sy=sin(uTurn*w);p.xz=mat2(cy,-sy,sy,cy)*p.xz;float cn=cos(uNod*w),sn=sin(uNod*w);p.yz=mat2(cn,sn,-sn,cn)*p.yz;transformed=p+vec3(0.,hy,0.);} }`)};
+    const av=new THREE.Mesh(g,mat);av.name='pimo_glb';av.castShadow=true;av.receiveShadow=false;av.frustumCulled=false;
+    [...body.children].forEach(c=>{if(c!==pad&&c!==tag)c.visible=false});body.add(av);window.__pimoGLB=true;window.__pimoDbg={av,G,camera,body};
+    try{needs=Math.max(needs,2)}catch(e){}
+  }catch(e){console.warn('v58 pimo glb',e)}})();
+
   const SK='#a8784f';
   const thobeM=new THREE.MeshStandardMaterial({color:'#f5f4ef',roughness:.62,metalness:0});
   const skinM=new THREE.MeshStandardMaterial({color:SK,roughness:.6});
@@ -5193,7 +5227,7 @@ try{(function(){
     AR_.sp.rotation.x=-.25*gest-.55*gest*Math.max(0,Math.sin(tt*1.7));AR_.sp.rotation.z=.1+.22*gest;AR_.el.rotation.x=-(.15+1.0*gest+.25*gest*Math.sin(tt*2.6));
     AL_.sp.rotation.x=-.06*gest+.03*Math.sin(tt*1.1);AL_.sp.rotation.z=-.1-.04*gest;AL_.el.rotation.x=-(.1+.25*gest);
     head.rotation.x=.03*Math.sin(tt*.9)+sm*.07*Math.sin(tt*6.3)-gest*.03;head.rotation.y=.06*Math.sin(tt*.5)+gest*.08*Math.sin(tt*1.3);head.rotation.z=.02*Math.sin(tt*.7);
-    body.position.y=Math.sin(tt*1.8)*m(.004);thobe.scale.x=1.12+.008*Math.sin(tt*1.8);
+    if(window.__pimoU){__pimoU.jaw.value=sm;__pimoU.nod.value=head.rotation.x+gest*.05*Math.sin(tt*2.1);__pimoU.turn.value=head.rotation.y}body.position.y=Math.sin(tt*1.8)*m(.004);thobe.scale.x=1.12+.008*Math.sin(tt*1.8);
     const dx=camera.position.x-G.position.x,dz=camera.position.z-G.position.z;const want=Math.atan2(dx,dz);let dy=want-body.rotation.y;dy=Math.atan2(Math.sin(dy),Math.cos(dy));body.rotation.y+=dy*Math.min(1,dt*3);
     pad.material.opacity=.7+.3*Math.sin(tt*2.4);tag.visible=!talking;
     if(talking&&now-(tick.ki||0)>1000){tick.ki=now;try{dispatchEvent(new Event('pointermove'))}catch(e){}}
@@ -5722,4 +5756,4 @@ html,body{max-width:100%;overflow-x:hidden}
  #intro.cx .brandc,#intro.cx #introSkip{top:14px}
  #vsPanel .vs-card{max-height:calc(100dvh - 24px);overflow:auto}
 }
-</style><script>(function(){var T='مكتب إدارة المشاريع PMO – المنطقة المركزية';function f(){if(document.title!==T)document.title=T}f();var n=0,i=setInterval(function(){f();if(++n>40)clearInterval(i)},500);addEventListener("load",f)})()</script><script>(function(){var B='20261110134114';try{fetch('../version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){if(j&&j.v&&j.v!==B){var k='pmoReload'+j.v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1')}catch(e){}location.reload()}}).catch(function(){})}catch(e){}})()</script></body></html>
+</style><script>(function(){var T='مكتب إدارة المشاريع PMO – المنطقة المركزية';function f(){if(document.title!==T)document.title=T}f();var n=0,i=setInterval(function(){f();if(++n>40)clearInterval(i)},500);addEventListener("load",f)})()</script><script>(function(){var B='20261111001954';try{fetch('../version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){if(j&&j.v&&j.v!==B){var k='pmoReload'+j.v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1')}catch(e){}location.reload()}}).catch(function(){})}catch(e){}})()</script></body></html>
