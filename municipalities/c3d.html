@@ -7959,12 +7959,11 @@ function famMat(d,onload){const m=new THREE.MeshStandardMaterial({roughness:.85,
       const ch=document.getElementById('pimoChip');if(ch)ch.querySelectorAll('.pc-av').forEach(h=>P.avatar(h,{}))},300);
     let n2=0;const iv2=setInterval(()=>{if(++n2>600){clearInterval(iv2);return}const P=window.__P360,holder=scene.getObjectByName('pimo_real');if(!P||!holder)return;clearInterval(iv2);
       try{const tex=new THREE.Texture(P.IM[0]);tex.encoding=THREE.sRGBEncoding;tex.anisotropy=4;
-        const gc=document.createElement('canvas');gc.width=4;gc.height=128;const gx=gc.getContext('2d'),gg=gx.createLinearGradient(0,0,0,128);gg.addColorStop(0,'#fff');gg.addColorStop(.8,'#fff');gg.addColorStop(.9,'#777');gg.addColorStop(.97,'#000');gg.addColorStop(1,'#000');gx.fillStyle=gg;gx.fillRect(0,0,4,128);
-        const mat=new THREE.MeshBasicMaterial({map:tex,alphaMap:new THREE.CanvasTexture(gc),transparent:true,alphaTest:.02,depthWrite:false,side:THREE.DoubleSide});mat.color.setScalar(.86);
-        const S=.58,pl=new THREE.Mesh(new THREE.PlaneGeometry(S,S),mat);pl.position.set(-.032,1.512,.17);pl.renderOrder=3;pl.name='pimo_bust';pl.frustumCulled=false;holder.add(pl);
+        const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,alphaTest:.4,side:THREE.DoubleSide});mat.color.setScalar(.93);
+        const S=.516,pl=new THREE.Mesh(new THREE.PlaneGeometry(S,S),mat);pl.position.set(-.03,1.538,.03);pl.name='pimo_bust';pl.frustumCulled=false;holder.add(pl);
         let cur=-1;const N=P.N;
         (function upd(){requestAnimationFrame(upd);const U=window.__pimoU;const a=U?U.turn.value:0;const i=((Math.round(a*57.3/10)%N)+N)%N;const im=P.IM[i];if(i!==cur&&im.complete&&im.naturalWidth){cur=i;tex.image=im;tex.needsUpdate=true;try{needs=Math.max(needs,1)}catch(e){}}})();
-        if(window.__pimoCut)window.__pimoCut.value=1.33;else window.__pimoCut={value:1.33};window.__pimoBust=true;try{needs=Math.max(needs,2)}catch(e){}
+        if(window.__pimoCut)window.__pimoCut.value=1.36;else window.__pimoCut={value:1.36};window.__pimoBust=true;try{needs=Math.max(needs,2)}catch(e){}
       }catch(e){console.warn('v62 bust',e)}},300)})();
 
   // visitors: women and children on the plazas take the supplied models (same places, same scale, men unchanged)
