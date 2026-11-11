@@ -7927,12 +7927,12 @@ try{(function(){
     const MY=1.538,NY=1.44,MX=-.02,f=v=>v.toFixed(4);
     root.traverse(o=>{if(!o.isMesh)return;o.castShadow=o.name!=='Face_Detail';o.frustumCulled=false;const mt=o.material;mt.metalness=0;mt.roughness=Math.max(.75,mt.roughness||0);
       if(mt.map){mt.map.anisotropy=4;if(MOBL&&mt.map.image&&mt.map.image.width>2048){const c=document.createElement('canvas');c.width=c.height=2048;c.getContext('2d').drawImage(mt.map.image,0,0,2048,2048);mt.map.image=c;mt.map.needsUpdate=true}}
-      mt.onBeforeCompile=sh=>{sh.uniforms.uJaw=U.jaw;sh.uniforms.uNod=U.nod;sh.uniforms.uTurn=U.turn;sh.uniforms.uCut=window.__pimoCut||(window.__pimoCut={value:99});
-        sh.vertexShader='uniform float uJaw;uniform float uNod;uniform float uTurn;varying float vMy;\n'+sh.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
-        { vMy=position.y; vec3 d=(transformed-vec3(${f(MX)},${f(MY)},${f(MZ)}))/vec3(.045,.028,.06);float fj=exp(-dot(d,d)*1.6);
+      mt.onBeforeCompile=sh=>{sh.uniforms.uJaw=U.jaw;sh.uniforms.uNod=U.nod;sh.uniforms.uTurn=U.turn;
+        sh.vertexShader='uniform float uJaw;uniform float uNod;uniform float uTurn;\n'+sh.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+        { vec3 d=(transformed-vec3(${f(MX)},${f(MY)},${f(MZ)}))/vec3(.045,.028,.06);float fj=exp(-dot(d,d)*1.6);
           float below=step(transformed.y,${f(MY+.004)});transformed.y-=uJaw*fj*below*.011;
           float hy=${f(NY)};if(transformed.y>hy){float w=smoothstep(hy,hy+.16,transformed.y)*.5;vec3 p=transformed-vec3(${f(MX)},hy,0.);
-            float cy=cos(uTurn*w),sy=sin(uTurn*w);p.xz=mat2(cy,-sy,sy,cy)*p.xz;float cn=cos(uNod*w),sn=sin(uNod*w);p.yz=mat2(cn,sn,-sn,cn)*p.yz;transformed=p+vec3(${f(MX)},hy,0.);} }`);sh.fragmentShader='uniform float uCut;varying float vMy;\n'+sh.fragmentShader.replace('void main() {','void main() {\n if(vMy>uCut) discard;')};
+            float cy=cos(uTurn*w),sy=sin(uTurn*w);p.xz=mat2(cy,-sy,sy,cy)*p.xz;float cn=cos(uNod*w),sn=sin(uNod*w);p.yz=mat2(cn,sn,-sn,cn)*p.yz;transformed=p+vec3(${f(MX)},hy,0.);} }`)};
       mt.needsUpdate=true});
     const holder=new THREE.Group();holder.name='pimo_real';holder.scale.setScalar(m(1));holder.add(root);
     const wait=()=>new Promise(r=>{const t=setInterval(()=>{if(window.__pimoGLB||!body.children.length){clearInterval(t);r()}},120);setTimeout(()=>{clearInterval(t);r()},8000)});await wait();
@@ -7951,20 +7951,6 @@ function famMat(d,onload){const m=new THREE.MeshStandardMaterial({roughness:.85,
     let tries=0;const iv=setInterval(()=>{if(++tries>300){clearInterval(iv);return}
       const keys=['boy','girl','woman_black','woman_navy'];const ms=keys.map(k=>scene.getObjectByName('v59_people_'+k));if(ms.some(x=>!x))return;clearInterval(iv);
       try{keys.forEach((k,i)=>{const im=ms[i];const g=famGeo(V61[k]);const mt=famMat(V61[k],()=>{try{needs=Math.max(needs,2)}catch(e){}});im.geometry.dispose();im.geometry=g;im.material=mt;im.castShadow=true;im.receiveShadow=false});window.__v61people=true;try{needs=Math.max(needs,2)}catch(e){}}catch(e){console.warn('v61 people',e)}},300)})();
-
-  /* v62 · PIMO 360° bust (from the turntable video) on the 3D figure + animated avatars in the card */
-  (function(){let n1=0;const iv1=setInterval(()=>{if(++n1>600){clearInterval(iv1);return}const P=window.__P360,card=document.getElementById('pimoCard');if(!P||!card)return;clearInterval(iv1);
-      const talking=()=>{const U=window.__pimoU;return !!(U&&U.jaw.value>0.04)};
-      card.querySelectorAll('.pc-av').forEach(h=>{P.avatar(h,{badge:true,talking});h.style.cursor='pointer';h.title='بيمو 360°';h.addEventListener('click',e=>{e.stopPropagation();P.open()})});
-      const ch=document.getElementById('pimoChip');if(ch)ch.querySelectorAll('.pc-av').forEach(h=>P.avatar(h,{}))},300);
-    let n2=0;const iv2=setInterval(()=>{if(++n2>600){clearInterval(iv2);return}const P=window.__P360,holder=scene.getObjectByName('pimo_real');if(!P||!holder)return;clearInterval(iv2);
-      try{const tex=new THREE.Texture(P.IM[0]);tex.encoding=THREE.sRGBEncoding;tex.anisotropy=4;
-        const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,alphaTest:.4,side:THREE.DoubleSide});mat.color.setScalar(.93);
-        const S=.516,pl=new THREE.Mesh(new THREE.PlaneGeometry(S,S),mat);pl.position.set(-.03,1.538,.03);pl.name='pimo_bust';pl.frustumCulled=false;holder.add(pl);
-        let cur=-1;const N=P.N;
-        (function upd(){requestAnimationFrame(upd);const U=window.__pimoU;const a=U?U.turn.value:0;const i=((Math.round(a*57.3/10)%N)+N)%N;const im=P.IM[i];if(i!==cur&&im.complete&&im.naturalWidth){cur=i;tex.image=im;tex.needsUpdate=true;try{needs=Math.max(needs,1)}catch(e){}}})();
-        if(window.__pimoCut)window.__pimoCut.value=1.36;else window.__pimoCut={value:1.36};window.__pimoBust=true;try{needs=Math.max(needs,2)}catch(e){}
-      }catch(e){console.warn('v62 bust',e)}},300)})();
 
   // visitors: women and children on the plazas take the supplied models (same places, same scale, men unchanged)
   (function(){let tries=0;const iv=setInterval(()=>{if(++tries>200){clearInterval(iv);return}
@@ -8652,44 +8638,4 @@ html,body{max-width:100%;overflow-x:hidden}
  #intro.cx .brandc,#intro.cx #introSkip{top:14px}
  #vsPanel .vs-card{max-height:calc(100dvh - 24px);overflow:auto}
 }
-</style><script>/* ===== v62 · PIMO 360° (turntable of the 3D bust): animated avatar + interactive viewer ===== */
-(function(){
-  if(window.__P360)return;
-  var F=null;
-  if(!F){try{F=window.parent&&window.parent!==window&&window.parent.__P360&&window.parent.__P360.F}catch(e){}}
-  if(!F||!F.length)return;
-  var N=F.length,IM=F.map(function(u){var i=new Image();i.decoding='async';i.src=u;return i});
-  var P={F:F,N:N,IM:IM};window.__P360=P;
-  function css(){if(document.getElementById('p360css'))return;var s=document.createElement('style');s.id='p360css';s.textContent=
-    '.p360av{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 18%;z-index:3;pointer-events:none;background:radial-gradient(circle at 50% 35%,#1d6b55,#06352a)}'+
-    '.p360badge{position:absolute;z-index:4;left:50%;bottom:-2px;transform:translateX(-50%);font:800 9px/1 Tajawal,system-ui,sans-serif;color:#0b3b2e;background:#e4c27d;border-radius:8px;padding:2px 5px;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.35)}'+
-    '#p360m{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(2,20,16,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);animation:p360in .3s ease}'+
-    '@keyframes p360in{from{opacity:0}}'+
-    '#p360m .bx{position:relative;width:min(460px,calc(100vw - 28px));border-radius:26px;padding:22px 18px 18px;direction:rtl;text-align:center;color:#fff;font-family:Tajawal,system-ui,sans-serif;background:linear-gradient(160deg,#0d4a3b,#052a21);border:1px solid rgba(228,194,125,.55);box-shadow:0 24px 70px rgba(0,0,0,.55)}'+
-    '#p360m h3{margin:0;font-size:22px;font-weight:800;color:#fff}#p360m p{margin:4px 0 0;font-size:13px;color:#e4c27d}'+
-    '#p360m .st{position:relative;margin:14px auto 6px;width:min(380px,78vw);aspect-ratio:1;border-radius:22px;background:radial-gradient(circle at 50% 40%,#2a7d65 0,#0a3d31 55%,#062a22 100%);cursor:grab;touch-action:none;overflow:hidden}'+
-    '#p360m .st:active{cursor:grabbing}#p360m .st img{width:100%;height:100%;object-fit:contain;-webkit-user-drag:none;user-select:none;pointer-events:none}'+
-    '#p360m .fl{position:absolute;left:12%;right:12%;bottom:5%;height:8%;border-radius:50%;background:radial-gradient(rgba(0,0,0,.45),transparent 70%)}'+
-    '#p360m .hint{font-size:12.5px;color:#cfe3dc;margin-top:6px}#p360m .x{position:absolute;top:10px;left:10px;width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;font-size:16px;cursor:pointer}'+
-    '#p360m .rg{width:min(380px,78vw);margin:8px auto 0;accent-color:#e4c27d}#p360m .deg{position:absolute;top:10px;right:12px;font:800 12px Tajawal,system-ui;color:#e4c27d;background:rgba(0,0,0,.25);padding:3px 8px;border-radius:10px}';
-    (document.head||document.documentElement).appendChild(s)}
-  /* animated avatar: gentle head turn (idle) or livelier (talking) */
-  var SW=[0,1,2,3,2,1,0,35,34,33,34,35];
-  P.avatar=function(host,opts){opts=opts||{};css();if(!host||host.querySelector('.p360av'))return null;var cs=getComputedStyle(host);if(cs.position==='static')host.style.position='relative';
-    var im=document.createElement('img');im.className='p360av';im.alt='بيمو';im.src=F[0];host.appendChild(im);
-    if(opts.badge){var b=document.createElement('span');b.className='p360badge';b.textContent='360°';host.appendChild(b)}
-    var k=0,last=0;(function tick(t){if(!im.isConnected)return;requestAnimationFrame(tick);var talk=opts.talking&&opts.talking();var dt=talk?140:420;if(t-last<dt)return;last=t;k=(k+1)%SW.length;var i=SW[k];if(talk&&Math.random()<.35)i=(i+(Math.random()<.5?1:35))%N;im.src=F[i]})(0);
-    return im};
-  P.open=function(){css();if(document.getElementById('p360m'))return;var m=document.createElement('div');m.id='p360m';
-    m.innerHTML='<div class="bx"><button class="x" aria-label="إغلاق">✕</button><span class="deg">0°</span><h3>تعرّف على بيمو</h3><p>مساعدك الشخصي · مكتب إدارة المشاريع PMO</p><div class="st"><img alt="بيمو 360°"><span class="fl"></span></div><input class="rg" type="range" min="0" max="'+(N-1)+'" step="1" value="0" aria-label="تدوير بيمو"><div class="hint">اسحب الصورة يميناً ويساراً لتدوير بيمو 360°</div></div>';
-    document.body.appendChild(m);var img=m.querySelector('img'),rg=m.querySelector('.rg'),dg=m.querySelector('.deg'),st=m.querySelector('.st');var pos=0,auto=true,drag=null;
-    function show(){var i=((Math.round(pos)%N)+N)%N;img.src=F[i];rg.value=i;dg.textContent=(i*360/N|0)+'°'}show();
-    var lt=0;(function spin(t){if(!m.isConnected)return;requestAnimationFrame(spin);if(auto&&!drag&&t-lt>110){lt=t;pos+=1;show()}})(0);
-    st.addEventListener('pointerdown',function(e){drag={x:e.clientX,p:pos};auto=false;st.setPointerCapture(e.pointerId)});
-    st.addEventListener('pointermove',function(e){if(!drag)return;pos=drag.p+(e.clientX-drag.x)/10;show()});
-    st.addEventListener('pointerup',function(){drag=null;clearTimeout(P._t);P._t=setTimeout(function(){auto=true},4000)});
-    rg.addEventListener('input',function(){auto=false;pos=+rg.value;show()});
-    function close(){m.remove();document.removeEventListener('keydown',kd)}function kd(e){if(e.key==='Escape')close();if(e.key==='ArrowRight'){auto=false;pos++;show()}if(e.key==='ArrowLeft'){auto=false;pos--;show()}}
-    m.querySelector('.x').onclick=close;m.addEventListener('click',function(e){if(e.target===m)close()});document.addEventListener('keydown',kd)};
-})();
-</script></body></html>
+</style></body></html>
