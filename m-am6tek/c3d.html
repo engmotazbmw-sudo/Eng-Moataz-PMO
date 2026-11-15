@@ -8078,6 +8078,218 @@ function famMat(d,onload){const m=new THREE.MeshStandardMaterial({roughness:.85,
     window.__v64=true;
   })()}catch(e){console.warn('v64',e)}
 
+  /* v65 · directions search (replaces the language button), precise GPS + compass, clearer route with time to arrive, PIMO chip above the toolbar, phone framing */
+  try{(function(){
+    const T3=THREE,AR=()=>lang==='ar',MOB=matchMedia('(pointer:coarse)').matches||innerWidth<=640;
+    const wk=()=>{try{needs=Math.max(needs,2)}catch(e){}};
+    const fmtM=m=>Math.round(m/5)*5;
+    const st=document.createElement('style');st.textContent=`
+      #v65sheet{position:fixed;z-index:70;inset-inline:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));max-width:460px;margin-inline:auto;max-height:min(70vh,560px);display:flex;flex-direction:column;
+        background:linear-gradient(160deg,rgba(6,46,36,.97),rgba(3,26,20,.97));color:#fff;border:1px solid rgba(228,194,125,.55);border-radius:22px;box-shadow:0 22px 50px rgba(0,0,0,.5);padding:12px 12px 8px;font:inherit;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);animation:v65in .3s cubic-bezier(.2,.8,.2,1)}
+      @keyframes v65in{from{opacity:0;transform:translateY(18px)}}
+      #v65sheet .hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}#v65sheet .hd b{flex:1;font-size:16px}
+      #v65sheet .hd .ic{width:30px;height:30px;border-radius:50%;background:#E4C27D;color:#062e24;display:grid;place-items:center}#v65sheet .hd .ic svg{width:17px;height:17px}
+      #v65sheet .x{width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font-size:13px}
+      #v65sheet .row{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border-radius:14px;padding:8px 10px;margin-bottom:6px}
+      #v65sheet .lbl{flex:0 0 auto;font-size:12px;font-weight:800;color:#E4C27D;min-width:22px}
+      #v65sheet .val{flex:1;min-width:0;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #v65sheet input{flex:1;min-width:0;background:none;border:0;outline:0;color:#fff;font:inherit;font-size:16px;padding:4px 0}#v65sheet input::placeholder{color:rgba(255,255,255,.55);font-size:13px}
+      #v65sheet .mini{border:1px solid rgba(228,194,125,.55);background:rgba(228,194,125,.12);color:#fff;border-radius:999px;padding:6px 10px;font:inherit;font-size:12px;font-weight:800;white-space:nowrap;cursor:pointer}
+      #v65sheet .acts{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 6px}
+      #v65sheet .res{list-style:none;margin:0;padding:0;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;min-height:60px}
+      #v65sheet .res li{display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:12px;cursor:pointer}#v65sheet .res li:hover,#v65sheet .res li:active{background:rgba(255,255,255,.08)}
+      #v65sheet .res li.none{opacity:.7;font-size:13px;cursor:default}
+      #v65sheet .res .d{flex:0 0 30px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;overflow:hidden;font-size:16px}#v65sheet .res .d svg{width:16px;height:16px;color:#fff;stroke:#fff}#v65sheet .res .d img{width:100%;height:100%;object-fit:cover}
+      #v65sheet .tx{display:flex;flex-direction:column;min-width:0}#v65sheet .tx b{font-size:14px}#v65sheet .tx small{font-size:11.5px;color:rgba(255,255,255,.7)}
+      #v65eta{position:fixed;left:0;top:0;z-index:8;pointer-events:none;background:#e0483b;color:#fff;border-radius:14px;padding:5px 10px 6px;text-align:center;box-shadow:0 8px 20px rgba(0,0,0,.35);white-space:nowrap;font-weight:800}
+      #v65eta b{display:block;font-size:14px;line-height:1.2}#v65eta span{display:block;font-size:10.5px;opacity:.95}
+      #v65eta:after{content:'';position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-bottom:0;border-top-color:#e0483b}
+      #v65eta[hidden]{display:none}
+      .routebar .v65a{display:block;margin-top:2px;border:0;border-radius:999px;padding:2px 8px;font:inherit;font-size:10.5px;font-weight:800;color:#fff;cursor:pointer;width:max-content}
+      .routebar .v65a.g{background:#2e8b57}.routebar .v65a.m{background:#c98a14}.routebar .v65a.b{background:#c0392b}
+      #v65acc{position:fixed;z-index:72;inset-inline:12px;top:calc(140px + env(safe-area-inset-top,0px));max-width:420px;margin-inline:auto;background:rgba(6,46,36,.96);color:#fff;border:1px solid rgba(228,194,125,.55);border-radius:18px;padding:12px 14px;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+      #v65acc b{font-size:14px}#v65acc p{margin:4px 0 10px;font-size:12.5px;line-height:1.6;opacity:.9}#v65acc div{display:flex;gap:8px}
+      #v65acc button{flex:1;border-radius:12px;padding:9px;font:inherit;font-weight:800;font-size:13px;border:1px solid rgba(228,194,125,.6);background:rgba(255,255,255,.08);color:#fff}#v65acc .y{background:#E4C27D;color:#062e24;border-color:#E4C27D}
+      #toolRail #v65dir{margin-top:4px!important;border-top:1px solid rgba(255,255,255,.08)!important;border-radius:0 0 15px 15px!important;padding-top:4px}
+      body.v65open #pimoChip{display:none!important}
+      body.pro-walk #v65sheet,body.pro-cine #v65sheet,body.pro-cine #v65eta{display:none!important}
+      .here .acc{background:rgba(31,143,208,.16)!important;border:1.5px solid rgba(31,143,208,.55)!important}`;
+    document.head.append(st);
+    /* ---------- 1. PIMO chip / card sit just above the bottom toolbars ---------- */
+    function barTop(){let top=innerHeight;document.querySelectorAll('#proDock,.dock,#v65sheet').forEach(el=>{const cs=getComputedStyle(el);if(cs.display==='none'||cs.visibility==='hidden')return;const r=el.getBoundingClientRect();if(r.width<120||r.height<20)return;if(r.top>innerHeight*.45&&r.top<top)top=r.top});return top}
+    function placePimo(){const ch=document.getElementById('pimoChip'),cd=document.getElementById('pimoCard');const b=Math.max(16,innerHeight-barTop()+10);
+      if(ch)ch.style.setProperty('bottom',b+'px','important');if(cd)cd.style.setProperty('bottom',b+'px','important')}
+    addEventListener('resize',placePimo);setInterval(placePimo,700);placePimo();
+
+    /* ---------- 2. precise location: watch for a few seconds and keep the best fix ---------- */
+    const inv=(x,z)=>{const k=CR*CR+CI*CI,rx=(CR*x+CI*z)/k,rz=(-CI*x+CR*z)/k;return{lat:F0.lat-rz/110815,lng:F0.lng+rx/98722.7}};
+    window.__v65geo={inv,fwd:geoToXZ};
+    let rawLast=null,corr=null,compassOn=false;
+    const accTxt=a=>(AR()?'±':'±')+Math.round(a)+(AR()?' م':' m');
+    locate=function(onOk,onFail){
+      if(!navigator.geolocation||!window.isSecureContext&&location.protocol!=='file:'){onFail({code:0});return}
+      let best=null,done=false,wid=null;const t0=performance.now();
+      const end=()=>{done=true;try{navigator.geolocation.clearWatch(wid)}catch(e){}clearTimeout(tm);clearInterval(ti)};
+      const finish=()=>{if(done)return;end();onOk(best)};
+      const fail=e=>{if(done)return;if(best){finish();return}end();onFail(e)};
+      const prog=()=>{if(best)toast((AR()?'جارٍ تحديد موقعك بدقة… ':'Pinpointing you… ')+accTxt(best.coords.accuracy),0)};
+      try{wid=navigator.geolocation.watchPosition(p=>{if(done)return;if(!best||p.coords.accuracy<best.coords.accuracy)best=p;prog();
+          const el=performance.now()-t0,a=best.coords.accuracy;if(a<=10||(el>3500&&a<=18)||(el>7000&&a<=30))finish()},
+        e=>{if(e&&e.code===1)fail(e)},{enableHighAccuracy:true,maximumAge:0,timeout:25000})}catch(e){fail({code:2});return}
+      const ti=setInterval(()=>{if(best&&performance.now()-t0>9000&&best.coords.accuracy<=45)finish()},500);
+      const tm=setTimeout(()=>fail({code:3}),16000);
+    };
+    // compass: the cone points where the phone faces while standing still
+    function reqCompass(){if(compassOn)return;const on=()=>{compassOn=true;addEventListener('deviceorientation',e=>{let h=e.webkitCompassHeading;if(h==null&&e.absolute&&e.alpha!=null)h=360-e.alpha;if(h==null||!live.on)return;
+        if((live._spd||0)>.6)return;const d=Math.atan2(-Math.cos(h*D),Math.sin(h*D));live.dir=live.dir==null?d:live.dir+Math.atan2(Math.sin(d-live.dir),Math.cos(d-live.dir))*.25;here.el.classList.add('dir');wk()},true)};
+      try{if(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function')DeviceOrientationEvent.requestPermission().then(s=>{if(s==='granted')on()}).catch(()=>{});else on()}catch(e){}}
+    const _useGPS=useGPS;
+    useGPS=function(){reqCompass();closeStartPanel();toast(t('locating'),0);
+      locate(pos=>{rawLast=pos.coords;const q0=geoToXZ(pos.coords.latitude,pos.coords.longitude);
+        if(Math.hypot(q0.x-60,q0.z-30)>650){startTap();toast(t('far'),0);return}
+        const sn=navSnap(q0.x,q0.z,Math.min(8,pos.coords.accuracy)/M_PER_U),q=sn||q0;
+        live.tx=q.x;live.tz=q.z;live.acc=pos.coords.accuracy||20;live.bestAcc=live.acc;live.bestT=performance.now();live.on=true;here.el.classList.add('live');setStart(q,t('myGps'));startWatch();
+        accPrompt();
+      },e=>{startTap();toast((e&&e.code===1?t('denied'):t('nogps'))+' — '+t('tapHint'),0)})};
+    // a rough fix can be corrected with one tap on the map; the correction follows later GPS fixes
+    const _onGeo=onGeo;
+    onGeo=function(ps){rawLast=ps.coords;live._spd=ps.coords.speed||0;
+      if(corr&&ps.coords.accuracy<=12&&performance.now()-corr.t>8000)corr=null;
+      if(corr&&performance.now()-corr.t<10*60e3){const c=ps.coords;ps={coords:{latitude:c.latitude+corr.dlat,longitude:c.longitude+corr.dlng,accuracy:Math.min(c.accuracy,12),heading:c.heading,speed:c.speed}}}
+      _onGeo(ps);updAccBadge()};
+    let fixMode=false,accEl=null;
+    function accPrompt(){if(accEl){accEl.remove();accEl=null}const a=live.acc||99;
+      if(a<=25){toast((AR()?'تم تحديد موقعك · دقة ':'Located · accuracy ')+accTxt(a),3500);return}
+      document.getElementById('toast').hidden=true;
+      accEl=document.createElement('div');accEl.id='v65acc';accEl.innerHTML=`<b>${AR()?'دقة الموقع منخفضة':'Low location accuracy'} (${accTxt(a)})</b><p>${AR()?'إن لم تكن النقطة الزرقاء في مكانك، اضغط «تصحيح» ثم المس مكانك الفعلي على الخريطة.':'If the blue dot is off, tap “Fix” then touch where you really are.'}</p><div><button class="y">${AR()?'تصحيح على الخريطة':'Fix on map'}</button><button class="n">${AR()?'الموقع صحيح':'It’s right'}</button></div>`;
+      document.body.append(accEl);accEl.querySelector('.n').onclick=()=>{accEl.remove();accEl=null};
+      accEl.querySelector('.y').onclick=()=>{accEl.remove();accEl=null;fixMode=true;toast(AR()?'المس مكانك الفعلي على الخريطة':'Touch where you are on the map',0)}}
+    window.__v65fix=()=>{fixMode=true};
+
+    /* ---------- 3. clearer route: bright band with white edge, white arrows, destination pin with time to arrive ---------- */
+    try{bandMat.color.set('#1f8fd0');bandMat.opacity=.95;bandMat.depthTest=false;bandMat.needsUpdate=true;chevMat.color.set('#ffffff');chevMat.depthTest=false;chevMat.needsUpdate=true}catch(e){}
+    const edgeMat=new T3.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:.95,depthTest:false});
+    const pinMat=new T3.MeshBasicMaterial({color:'#e0483b',depthTest:false}),ringMat=new T3.MeshBasicMaterial({color:'#e0483b',transparent:true,opacity:.5,depthTest:false,side:T3.DoubleSide});
+    const stMat=new T3.MeshBasicMaterial({color:'#1f8fd0',transparent:true,opacity:.35,depthTest:false,side:T3.DoubleSide});
+    let destRing=null,endPt=null;
+    const eta=document.createElement('div');eta.id='v65eta';eta.hidden=true;document.body.append(eta);
+    const _draw=drawRoute;
+    drawRoute=function(p){const r=_draw(p);try{
+        routeGroup.children.slice().forEach(m=>{if(m.material===bandMat){m.scale.x=1.45;m.renderOrder=11;const e=new T3.Mesh(m.geometry,edgeMat);e.position.copy(m.position);e.rotation.copy(m.rotation);e.scale.set(2.1,1,1);e.position.y-=.02;e.renderOrder=10;routeGroup.add(e)}else if(m.material===chevMat){m.renderOrder=12;m.scale.setScalar(1.15)}});
+        const end=routePts[routePts.length-1];endPt=end.clone();
+        const pole=new T3.Mesh(new T3.CylinderGeometry(.18,.18,7,10),pinMat);pole.position.set(end.x,end.y+3.5,end.z);pole.renderOrder=13;routeGroup.add(pole);
+        const head=new T3.Mesh(new T3.SphereGeometry(1.25,18,12),pinMat);head.position.set(end.x,end.y+7.6,end.z);head.renderOrder=13;routeGroup.add(head);
+        destRing=new T3.Mesh(new T3.RingGeometry(1.6,2.4,40),ringMat);destRing.rotation.x=-Math.PI/2;destRing.position.set(end.x,end.y+.1,end.z);destRing.renderOrder=12;routeGroup.add(destRing);
+        const s=routePts[0],sr=new T3.Mesh(new T3.CircleGeometry(2.6,32),stMat);sr.rotation.x=-Math.PI/2;sr.position.set(s.x,s.y+.08,s.z);sr.renderOrder=12;routeGroup.add(sr);
+      }catch(e){console.warn('v65 route',e)}return r};
+    const _clear=clearRoute;clearRoute=function(){_clear();destRing=null;endPt=null;eta.hidden=true};
+
+    function fitRoute(withMe,ms){if(!routePts||routePts.length<2)return false;
+      const P=routePts.map(q=>({x:q.x,z:q.z}));if(withMe)P.unshift({x:live.tx,z:live.tz});
+      const s0=P[0],e0=P[P.length-1];let fx=e0.x-s0.x,fz=e0.z-s0.z;const fl=Math.hypot(fx,fz);if(fl<1){fx=0;fz=-1}else{fx/=fl;fz/=fl}   // forward = towards the destination (top of the screen)
+      const rx=-fz,rz=fx;let a1=1e9,a2=-1e9,b1=1e9,b2=-1e9;P.forEach(q=>{const a=q.x*fx+q.z*fz,b=q.x*rx+q.z*rz;a1=Math.min(a1,a);a2=Math.max(a2,a);b1=Math.min(b1,b);b2=Math.max(b2,b)});
+      const Dp=Math.max(a2-a1,15),Wd=Math.max(b2-b1,15),am=(a1+a2)/2,bm=(b1+b2)/2;
+      const asp=(renderer._w||innerWidth)/(renderer._h||innerHeight),vf=camera.fov*D/2,hf=Math.atan(Math.tan(vf)*asp),pitch=56*D;
+      const L=Math.max(60,Math.min(520,Math.max(Dp*Math.sin(pitch)/2/Math.tan(vf)*1.45,Wd/2/Math.tan(hf)*1.3)+20));
+      const tg=new T3.Vector3(fx*(am-Dp*(asp<1?.12:.05))+rx*bm,0,fz*(am-Dp*(asp<1?.12:.05))+rz*bm);
+      const pos=new T3.Vector3(tg.x-fx*L*Math.cos(pitch),L*Math.sin(pitch),tg.z-fz*L*Math.cos(pitch));flyTo(pos,tg,ms||900);return true}
+    const _fv=followView;
+    followView=function(){try{if(live.on&&fitRoute(true,800))return}catch(e){}return _fv()};
+    const _rc=renderCard;
+    renderCard=function(p,withRoute){const r=_rc(p,withRoute);if(withRoute&&routePts)try{setTimeout(()=>{if(routePts)fitRoute(live.on,1000)},40)}catch(e){}return r};
+    const arrivalClock=lenM=>{try{return new Intl.DateTimeFormat(AR()?'ar-SA':'en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Riyadh'}).format(new Date(Date.now()+lenM/1.4*1000))}catch(e){return''}};
+    function etaHTML(p,lenM){return `<b>${walkTime(lenM)}</b><span>${fmtM(lenM)} ${t('m')} · ${AR()?'الوصول':'arrive'} ${arrivalClock(lenM)}</span>`}
+    const v3=new T3.Vector3();
+    (function tick(now){requestAnimationFrame(tick);
+      if(!endPt||!routePts||!selected){eta.hidden=true;return}
+      if(destRing){const k=1+.35*Math.sin(now/300);destRing.scale.set(k,k,k);ringMat.opacity=.55-.25*Math.sin(now/300);wk()}
+      v3.set(endPt.x,endPt.y+9.4,endPt.z).project(camera);const w=renderer._w||innerWidth,h=renderer._h||innerHeight;
+      if(v3.z>1){eta.hidden=true;return}eta.hidden=false;const ex=Math.max(70,Math.min(w-70,(v3.x*.5+.5)*w)),ey=Math.max(236,Math.min(h-170,(-v3.y*.5+.5)*h));eta.style.transform=`translate3d(${ex.toFixed(1)}px,${ey.toFixed(1)}px,0) translate(-50%,-100%)`})(0);
+    function updAccBadge(){const rb=document.querySelector('.routebar');if(!rb||rb.hidden)return;let bd=rb.querySelector('.v65a');
+      if(!live.on){if(bd)bd.remove();return}
+      if(!bd){bd=document.createElement('button');bd.type='button';bd.className='v65a';bd.onclick=()=>{fixMode=true;toast(AR()?'المس مكانك الفعلي على الخريطة':'Touch where you are on the map',0)};const tx=rb.querySelector('.rb-t');(tx||rb).append(bd)}
+      const a=live.acc||20;bd.className='v65a '+(a<=15?'g':a<=40?'m':'b');bd.textContent=(AR()?'دقة الموقع ':'GPS ')+accTxt(a)+(corr?(AR()?' · مصحَّح':' · fixed'):'')}
+    const _srb=showRouteBar;
+    showRouteBar=function(p,lenM){_srb(p,lenM);try{const sm=routeBar.querySelector('.rb-t small');if(sm&&!(live.on&&live.arrived))sm.textContent=`${walkTime(lenM)} · ${fmtM(lenM)} ${t('m')} · ${AR()?'الوصول':'arrive'} ${arrivalClock(lenM)}`;
+      eta.innerHTML=etaHTML(p,lenM);updAccBadge()}catch(e){}};
+
+    /* ---------- 4. directions search: places, coordinates or a point on the map ---------- */
+    let pickDest=false;
+    canvas.addEventListener('pointerup',e=>{if(!fixMode&&!pickDest)return;if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;
+      const rc=canvas.getBoundingClientRect();mp.set((e.clientX-rc.left)/rc.width*2-1,-((e.clientY-rc.top)/rc.height)*2+1);ray.setFromCamera(mp,camera);
+      if(!ray.ray.intersectPlane(groundPlane,hitPt))return;e.stopImmediatePropagation();document.getElementById('toast').hidden=true;
+      if(fixMode){fixMode=false;const g=inv(hitPt.x,hitPt.z);
+        if(rawLast)corr={dlat:g.lat-rawLast.latitude,dlng:g.lng-rawLast.longitude,t:performance.now()};
+        live.tx=hitPt.x;live.tz=hitPt.z;live.acc=Math.min(live.acc||12,12);here.x=hitPt.x;here.z=hitPt.z;
+        if(start){start.x=hitPt.x;start.z=hitPt.z}else setStart({x:hitPt.x,z:hitPt.z},t('myGps'));
+        if(selected&&routePts)renderCard(selected,true);toast(AR()?'تم تصحيح موقعك':'Position corrected',2500);wk();return}
+      pickDest=false;goCoord(hitPt.x,hitPt.z,AR()?'نقطة على الخريطة':'Point on map')},true);
+
+    function parseCoord(s){s=String(s).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/٫/g,'.').replace(/،/g,',');
+      let m=s.match(/@(-?\d+\.\d+),\s*(-?\d+\.\d+)/)||s.match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+)(?:%2C|,)\s*(-?\d+\.\d+)/i);
+      if(m)return{lat:+m[1],lng:+m[2]};
+      const dms=[...s.matchAll(/(\d+)[°\s]+(\d+)['′\s]+(\d+(?:\.\d+)?)["″]?\s*([NSEWشجقغ])/gi)];
+      if(dms.length>=2){const v=dms.map(x=>{let d=+x[1]+x[2]/60+x[3]/3600;if(/[SWجغ]/i.test(x[4]))d=-d;return{d,ax:/[NSشج]/i.test(x[4])?'lat':'lng'}});const o={};v.forEach(q=>o[q.ax]=q.d);if(o.lat!=null&&o.lng!=null)return o}
+      m=s.match(/(-?\d{1,2}\.\d{3,})\s*[, ]\s*(-?\d{1,3}\.\d{3,})/);if(m){let a=+m[1],b=+m[2];if(a>35&&b<35)[a,b]=[b,a];return{lat:a,lng:b}}
+      return null}
+    function goCoord(x,z,label,gl){const inside=Math.hypot(x-60,z-30)<=650;
+      if(!inside){const ll=gl||inv(x,z);toast((AR()?'الموقع خارج المنطقة المركزية':'Outside the Central Area'),3500);window.open(`https://www.google.com/maps/dir/?api=1&destination=${ll.lat.toFixed(6)},${ll.lng.toFixed(6)}&travelmode=walking`,'_blank');return}
+      const sn=navSnap(x,z,10/M_PER_U)||{x,z};
+      const p={id:'pt',ar:label,en:label,x:sn.x,z:sn.z,y:Y,cat:'landmark',hoursAr:'—',hoursEn:'—',descAr:'',descEn:''};go(p)}
+    function go(p){closeSheet();if(typeof closeCard==='function')try{closeCard()}catch(e){}
+      if(!start){pending=p;select(p);openStartPanel();return}select(p);renderCard(p,true)}
+
+    const IC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-8 18-2-8-8-2z"/></svg>';
+    let sheet=null;
+    function closeSheet(){if(sheet){sheet.remove();sheet=null}document.body.classList.remove('v65open')}
+    function openSheet(){closeSheet();try{closeStartPanel()}catch(e){}
+      sheet=document.createElement('div');sheet.id='v65sheet';sheet.setAttribute('role','dialog');
+      const from=start?start.label:(AR()?'لم يُحدَّد بعد':'Not set');
+      const accS=live.on?` · ${accTxt(live.acc||20)}`:'';
+      sheet.innerHTML=`<div class="hd"><span class="ic">${IC}</span><b>${AR()?'الاتجاهات':'Directions'}</b><button class="x" aria-label="✕">✕</button></div>
+        <div class="row from"><span class="lbl">${AR()?'من':'From'}</span><span class="val">${from}${accS}</span><button class="mini me">${AR()?'موقعي':'My location'}</button><button class="mini chg">${AR()?'تغيير':'Change'}</button></div>
+        <div class="row to"><span class="lbl">${AR()?'إلى':'To'}</span><input type="search" enterkeyhint="search" placeholder="${AR()?'اسم المكان أو إحداثيات (27.5215, 41.6979)':'Place name or coordinates (27.5215, 41.6979)'}" autocomplete="off"></div>
+        <div class="acts"><button class="mini map">${AR()?'اختر نقطة على الخريطة':'Pick a point on the map'}</button><button class="mini cp">${AR()?'نسخ إحداثيات موقعي':'Copy my coordinates'}</button></div>
+        <ul class="res"></ul>`;
+      document.body.append(sheet);
+      const inp=sheet.querySelector('input'),ul=sheet.querySelector('.res');
+      sheet.querySelector('.x').onclick=closeSheet;
+      sheet.querySelector('.me').onclick=()=>{closeSheet();useGPS()};
+      sheet.querySelector('.chg').onclick=()=>{closeSheet();pending=null;openStartPanel()};
+      sheet.querySelector('.map').onclick=()=>{closeSheet();pickDest=true;toast(AR()?'المس النقطة التي تريد الذهاب إليها':'Touch where you want to go',0)};
+      sheet.querySelector('.cp').onclick=()=>{const src=live.on?inv(live.tx,live.tz):(start?inv(start.x,start.z):null);if(!src){toast(AR()?'حدّد موقعك أولاً':'Set your location first');return}
+        const s=src.lat.toFixed(6)+', '+src.lng.toFixed(6);try{navigator.clipboard.writeText(s).then(()=>toast((AR()?'نُسخت: ':'Copied: ')+s,3500),()=>toast(s,5000))}catch(e){toast(s,5000)}};
+      const list=()=>{const qv=inp.value.trim(),c=parseCoord(qv);let h='';
+        if(c){const r=geoToXZ(c.lat,c.lng),inside=Math.hypot(r.x-60,r.z-30)<=650;
+          h+=`<li data-c="1"><span class="d">📍</span><span class="tx"><b>${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}</b><small>${inside?(AR()?'داخل المنطقة المركزية · اعرض المسار':'Inside the Central Area · show route'):(AR()?'خارج المنطقة · يفتح في خرائط Google':'Outside · opens Google Maps')}</small></span></li>`;
+          ul.innerHTML=h;ul.querySelector('li').onclick=()=>{const r2=geoToXZ(c.lat,c.lng);goCoord(r2.x,r2.z,AR()?'الإحداثيات المحددة':'Given coordinates',c)};return}
+        const n=norm(qv);const rank=p=>{const a=norm(p.ar),e=norm(p.en),c=CAT[p.cat]?norm(CAT[p.cat].ar+' '+CAT[p.cat].en):'';let r=a===n||e===n?0:a.startsWith(n)||e.startsWith(n)?1:(' '+a+' '+e).includes(' '+n)?2:(a+' '+e).includes(n)?3:c.includes(n)?4:9;return r*10+(p.shop?1:0)};
+        const hits=(n?places.map(p=>[rank(p),p]).filter(x=>x[0]<90).sort((x,y)=>x[0]-y[0]).map(x=>x[1]):places.filter(p=>!p.shop)).slice(0,30);
+        ul.innerHTML=hits.map((p,i)=>{let d='';if(start){const dm=Math.hypot(p.x-start.x,p.z-start.z)*M_PER_U;d=` · ~${fmtM(dm*1.25)} ${t('m')}`}
+          return `<li data-i="${i}">${dotHTML(p,'d')}<span class="tx"><b>${pname(p)}</b><small>${CAT[p.cat]?(AR()?CAT[p.cat].ar:CAT[p.cat].en):''}${d}</small></span></li>`}).join('')||`<li class="none">${AR()?'لا نتائج — جرّب اسماً آخر أو أدخل إحداثيات':'No results — try another name or coordinates'}</li>`;
+        ul.querySelectorAll('li[data-i]').forEach(li=>li.onclick=()=>go(hits[+li.dataset.i]))};
+      inp.oninput=list;inp.onkeydown=e=>{if(e.key==='Enter'){const f=ul.querySelector('li[data-i],li[data-c]');if(f)f.click()}};list();
+      if(!MOB)setTimeout(()=>inp.focus(),60);document.body.classList.add('v65open')}
+    window.__v65open=openSheet;
+    const mkBtn=()=>{const lb=document.getElementById('langBtn');if(!lb)return false;if(document.getElementById('v65dir'))return true;
+      const b=document.createElement('button');b.type='button';b.id='v65dir';b.className=lb.parentNode&&lb.parentNode.id==='toolRail'?'xbtn':'corner';
+      b.innerHTML=IC+'<span>'+(AR()?'الاتجاهات':'Directions')+'</span>';b.dataset.tip=AR()?'ابحث عن مكان أو إحداثيات واعرض المسار':'Find a place or coordinates and show the route';b.setAttribute('aria-label',b.dataset.tip);b.onclick=openSheet;
+      lb.parentNode.insertBefore(b,lb);lb.style.setProperty('display','none','important');return true};
+    if(!mkBtn()){const iv=setInterval(()=>{if(mkBtn())clearInterval(iv)},400);setTimeout(()=>clearInterval(iv),60000)}
+    setInterval(()=>{const lb=document.getElementById('langBtn'),b=document.getElementById('v65dir');if(lb&&b){lb.style.setProperty('display','none','important');if(lb.parentNode&&b.parentNode!==lb.parentNode){lb.parentNode.insertBefore(b,lb);b.className=lb.parentNode.id==='toolRail'?'xbtn':'corner'}}},1500);
+
+    /* ---------- 5. phone framing: PIMO talk shot and the cinematic tour fit a tall screen ---------- */
+    // cinematic tour on a tall phone screen: widen the lens so the landmarks are not cut off
+    try{new MutationObserver(()=>{if(document.body.classList.contains('pro-cine')&&innerHeight>innerWidth){const f=Math.min(64,44*Math.min(1.45,(innerHeight/innerWidth)/1.2));if(Math.abs(camera.fov-f)>.5){camera.fov=f;camera.updateProjectionMatrix();wk()}}}).observe(document.body,{attributes:true,attributeFilter:['class']})}catch(e){}
+    // a tall phone screen sees a very narrow slice with the desktop lens: widen it in the normal 3D view
+    function fitLens(){try{const b=document.body.classList;if(b.contains('pro-walk')||b.contains('pro-cine'))return;const a=innerWidth/innerHeight,f=a<.85?Math.min(56,38/Math.pow(Math.max(a,.42)/.85,.55)):38;
+      if(Math.abs(camera.fov-f)>.4&&Math.abs(camera.fov-38)<.5||Math.abs(camera.fov-f)>.4&&camera.__v65){camera.fov=f;camera.__v65=true;camera.updateProjectionMatrix();try{applyOffset()}catch(e){}wk()}}catch(e){}}
+    addEventListener('resize',()=>setTimeout(fitLens,60));setInterval(fitLens,1000);fitLens();
+    const _fly=flyTo;flyTo=function(pos,tg,ms){try{if(innerHeight>innerWidth&&pos&&tg){const d=pos.distanceTo(tg);if(d<4.5&&Math.abs(pos.y-tg.y)<1){const k=Math.min(1.9,4.6/d);pos=tg.clone().add(pos.clone().sub(tg).multiplyScalar(k));pos.y+=.35}}}catch(e){}return _fly(pos,tg,ms)};
+
+    window.__v65=true;
+  })()}catch(e){console.warn('v65',e)}
+
   // visitors: women and children on the plazas take the supplied models (same places, same scale, men unchanged)
   (function(){let tries=0;const iv=setInterval(()=>{if(++tries>200){clearInterval(iv);return}
     const W=scene.getObjectByName('r3_people_2'),B=scene.getObjectByName('r3_people_3'),Gi=scene.getObjectByName('r3_people_4');if(!W&&!B&&!Gi)return;clearInterval(iv);
