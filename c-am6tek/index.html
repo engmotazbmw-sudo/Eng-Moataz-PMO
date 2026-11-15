@@ -1,4 +1,44 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style><style id="v57walk">
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><script id="v67fahad">/* v67 · every PIMO answer in Fahad's voice (ElevenLabs), without any key in the page: the text goes to a public read-only ElevenLabs agent that only repeats it, locked to this site. Falls back to the browser voice if the service is unreachable. */
+(function(){if(window.__fahad||!window.speechSynthesis||!window.WebSocket)return;
+var AGENT='agent_2401m7ghp98bfy3spgn3pvtsv9we',SS=window.speechSynthesis,P=Object.getPrototypeOf(SS);
+var oSpeak=SS.speak.bind(SS),oCancel=SS.cancel.bind(SS),oPause=SS.pause.bind(SS),oResume=SS.resume.bind(SS);
+var gS=Object.getOwnPropertyDescriptor(P,'speaking'),gP=Object.getOwnPropertyDescriptor(P,'pending'),gU=Object.getOwnPropertyDescriptor(P,'paused');
+var ctx=null,q=[],cur=null,fails=0,off=(function(){var h=location.hostname,p=location.protocol;try{if(p==='about:'){h=parent.location.hostname;p=parent.location.protocol}}catch(e){}return p==='file:'||!/github\.io$/.test(h)})(),paused=false;
+window.__fahad={on:function(){return !off},queue:q};
+function C(){if(!ctx){var A=window.AudioContext||window.webkitAudioContext;if(!A)return null;try{ctx=new A({sampleRate:24000})}catch(e){ctx=new A()}}return ctx}
+['pointerup','touchend','click','keydown'].forEach(function(ev){addEventListener(ev,function(){var c=C();if(c&&c.state==='suspended'&&!paused)c.resume()},true)});
+function fire(u,type){try{var e;try{e=new SpeechSynthesisEvent(type,{utterance:u,charIndex:0,elapsedTime:0})}catch(x){e=new Event(type)}if(typeof u['on'+type]==='function')u['on'+type](e);u.dispatchEvent&&u.dispatchEvent(e)}catch(x){}}
+function arabic(u){return /[؀-ۿ]/.test(u.text||'')||/^ar/i.test(u.lang||'')}
+function next(){if(cur||!q.length)return;var u=q.shift();if(off||!arabic(u)||!C()){oSpeak(u);return next()}play(u)}
+function play(u){var c=C(),job={u:u,src:[],t:0,got:false,resp:false,done:false,ws:null,started:false};cur=job;
+  var finish=function(fallback){if(job.done)return;job.done=true;clearTimeout(job.wd);try{job.ws&&job.ws.close()}catch(e){}cur=null;
+    if(fallback){fails++;if(fails>=2)off=true;oSpeak(u)}else{fails=0;fire(u,'end')}setTimeout(next,0)};
+  job.finish=finish;
+  job.wd=setTimeout(function(){if(!job.got)finish(true)},8000);   // no voice within 8 s: use the browser voice for this answer
+  var ws;try{ws=new WebSocket('wss://api.elevenlabs.io/v1/convai/conversation?agent_id='+AGENT)}catch(e){return finish(true)}job.ws=ws;
+  ws.onopen=function(){ws.send(JSON.stringify({type:'conversation_initiation_client_data'}))};
+  ws.onmessage=function(ev){if(job.done)return;var m;try{m=JSON.parse(ev.data)}catch(e){return}
+    if(m.type==='conversation_initiation_metadata'){ws.send(JSON.stringify({type:'user_message',text:String(u.text||'').trim()}))}
+    else if(m.type==='ping'){try{ws.send(JSON.stringify({type:'pong',event_id:m.ping_event.event_id}))}catch(e){}}
+    else if(m.type==='audio'){var b=atob(m.audio_event.audio_base_64),n=b.length>>1;if(!n)return;var buf=c.createBuffer(1,n,24000),d=buf.getChannelData(0);
+      for(var i=0;i<n;i++){var v=b.charCodeAt(2*i)|(b.charCodeAt(2*i+1)<<8);if(v>32767)v-=65536;d[i]=v/32768}
+      var s=c.createBufferSource();s.buffer=buf;var g=c.createGain();g.gain.value=Math.max(0,Math.min(1,u.volume==null?1:u.volume));s.connect(g);g.connect(c.destination);
+      var at=Math.max(c.currentTime+.05,job.t);s.start(at);job.t=at+buf.duration;job.src.push(s);
+      if(!job.got){job.got=true;job.started=true;fire(u,'start')}
+      s.onended=function(){check()}}
+    else if(m.type==='agent_response'){job.resp=true;setTimeout(check,400)}};
+  ws.onerror=function(){if(!job.got)finish(true)};
+  ws.onclose=function(){if(!job.got)finish(true);else{job.resp=true;check()}};
+  function check(){if(job.done||!job.resp)return;if(c.currentTime>=job.t-.03){setTimeout(function(){if(!job.done&&c.currentTime>=job.t-.03)finish(false)},700)}}
+}
+SS.speak=function(u){q.push(u);next()};
+SS.cancel=function(){q.length=0;if(cur){var j=cur;j.src.forEach(function(s){try{s.stop()}catch(e){}});j.done=true;clearTimeout(j.wd);try{j.ws&&j.ws.close()}catch(e){}cur=null;if(j.started)fire(j.u,'end')}paused=false;oCancel()};
+SS.pause=function(){if(cur&&ctx){paused=true;ctx.suspend()}else oPause()};
+SS.resume=function(){if(paused&&ctx){paused=false;ctx.resume()}else oResume()};
+try{Object.defineProperty(SS,'speaking',{configurable:true,get:function(){return !!cur||(gS?gS.get.call(SS):false)}});
+  Object.defineProperty(SS,'pending',{configurable:true,get:function(){return q.length>0||(gP?gP.get.call(SS):false)}});
+  Object.defineProperty(SS,'paused',{configurable:true,get:function(){return paused||(gU?gU.get.call(SS):false)}})}catch(e){}
+})();</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style><style id="v57walk">
 body.pro-walk.coarse #gpMove{left:auto!important;right:calc(20px + env(safe-area-inset-right,0px))!important}
 body.pro-walk.coarse #gpLook{right:auto!important;left:calc(20px + env(safe-area-inset-left,0px))!important}
 body.pro-walk.coarse #pwRun{left:auto!important;right:calc(124px + env(safe-area-inset-right,0px))!important}
@@ -9783,4 +9823,4 @@ html,body{max-width:100%;overflow-x:hidden}
  #intro.cx .brandc,#intro.cx #introSkip{top:14px}
  #vsPanel .vs-card{max-height:calc(100dvh - 24px);overflow:auto}
 }
-</style><script>(function(){var T='مكتب إدارة المشاريع PMO – المنطقة المركزية';function f(){if(document.title!==T)document.title=T}f();var n=0,i=setInterval(function(){f();if(++n>40)clearInterval(i)},500);addEventListener("load",f)})()</script><script>(function(){var B='20261116002101';try{fetch('../version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){if(j&&j.v&&j.v!==B){var k='pmoReload'+j.v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1')}catch(e){}location.reload()}}).catch(function(){})}catch(e){}})()</script></body></html>
+</style><script>(function(){var T='مكتب إدارة المشاريع PMO – المنطقة المركزية';function f(){if(document.title!==T)document.title=T}f();var n=0,i=setInterval(function(){f();if(++n>40)clearInterval(i)},500);addEventListener("load",f)})()</script><script>(function(){var B='20261116002932';try{fetch('../version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){if(j&&j.v&&j.v!==B){var k='pmoReload'+j.v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1')}catch(e){}location.reload()}}).catch(function(){})}catch(e){}})()</script></body></html>
