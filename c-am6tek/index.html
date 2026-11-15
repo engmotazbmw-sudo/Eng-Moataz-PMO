@@ -1240,14 +1240,18 @@ body.tour #intBadge,body.tour .askloc{display:none!important}
   var done=false,ended=false,loaded=document.readyState==='complete',cur=-2;
   addEventListener('load',function(){loaded=true;if(ended)finish()});
   setTimeout(function(){var l=document.querySelector('.blogo'),b=$('pLogo');if(l&&b)b.src=l.src;else if(b)b.style.display='none'},40);
-  function setSnd(){var b=$('ovSnd');b.classList.toggle('un',!V.muted);b.querySelector('span').textContent=V.muted?'تشغيل الصوت':'كتم الصوت'}
+  /* v66 · inside the municipalities dashboard the sound of the opening clip is played by the dashboard itself, which the tap on the tab has already unlocked: no unmute needed */
+  var EMB=/^c3d\|/.test(window.name||'')&&window.parent!==window,pm=!1,lastS=0;function tell(o){try{o.ovAudio=1;parent.postMessage(o,'*')}catch(e){}}
+  if(EMB){addEventListener('message',function(e){if(!e.data)return;if(e.data.ovAudioBlocked){pm=!0;setSnd()}if(e.data.ovAudioOk){pm=!1;setSnd()}});['pointerup','touchend','click','keydown'].forEach(function(x){addEventListener(x,function(ev){if(!pm||ended||(ev.target&&ev.target.closest&&ev.target.closest('#ovSnd')))return;pm=!1;tell({a:'mute',m:false});tell({a:'play',t:V.currentTime||0});setSnd()},true)})}
+  function setSnd(){var b=$('ovSnd'),mu=EMB?pm:V.muted;b.classList.toggle('un',!mu);b.querySelector('span').textContent=mu?'تشغيل الصوت':'كتم الصوت'}
   function start(){P.classList.add('play');V.muted=false;V.volume=1;setSnd();var p=V.play();
     if(p&&p.catch)p.catch(function(){V.muted=true;setSnd();var p2=V.play();if(p2&&p2.catch)p2.catch(function(){$('ovPlay').hidden=false})})}
-  var unm=function(){if(!ended&&V.muted&&!V.paused){V.muted=false;setSnd()}};(function(){var evs=['pointerup','touchend','click','keydown','mousedown'];function h(e){if(e&&e.target&&e.target.closest&&e.target.closest('#ovSnd')){off();return}off();unm()}function off(){evs.forEach(function(x){removeEventListener(x,h,true)})}evs.forEach(function(x){addEventListener(x,h,true)})})();
+  var unm=function(){if(EMB)return;if(!ended&&V.muted&&!V.paused){V.muted=false;setSnd()}};(function(){var evs=['pointerup','touchend','click','keydown','mousedown'];function h(e){if(e&&e.target&&e.target.closest&&e.target.closest('#ovSnd')){off();return}off();unm()}function off(){evs.forEach(function(x){removeEventListener(x,h,true)})}evs.forEach(function(x){addEventListener(x,h,true)})})();
   $('ovPlay').onclick=function(){this.hidden=true;V.muted=false;$('ovSnd').classList.add('un');$('ovSnd').querySelector('span').textContent='كتم الصوت';start()};
-  $('ovSnd').onclick=function(e){e.stopPropagation();V.muted=!V.muted;setSnd();if(V.paused&&!ended)V.play()};
+  $('ovSnd').onclick=function(e){e.stopPropagation();if(EMB){pm=!pm;tell({a:pm?'mute':'play',m:pm,t:V.currentTime||0});if(!pm)tell({a:'mute',m:false});setSnd();if(V.paused&&!ended)V.play();return}V.muted=!V.muted;setSnd();if(V.paused&&!ended)V.play()};
+  if(EMB){V.addEventListener('playing',function(){V.muted=true;if(!ended&&!pm)tell({a:'play',t:V.currentTime||0})});V.addEventListener('pause',function(){if(!ended)tell({a:'stop'})})}
   function tick(){if(done)return;var t=V.currentTime||0,d=V.duration||16;
-    $('ovBar').style.width=Math.min(100,t/d*100)+'%';
+    $('ovBar').style.width=Math.min(100,t/d*100)+'%';if(EMB&&!pm&&!V.paused){var nw=performance.now();if(nw-lastS>900){lastS=nw;tell({a:'sync',t:t})}}
     $('ovTitle').classList.toggle('on',t>=TITLE[0]&&t<TITLE[1]);
     var bi=-1;for(var i=0;i<BEATS.length;i++)if(t>=BEATS[i][0]&&t<BEATS[i][1])bi=i;
     if(bi!==cur){cur=bi;var lt=$('ovLt');lt.classList.remove('on');if(bi>=0){$('ovNo').textContent=AD('0'+(bi+1));$('ovLtT').textContent=BEATS[bi][2];$('ovLtS').textContent=BEATS[bi][3];void lt.offsetWidth;lt.classList.add('on')}}
@@ -1255,7 +1259,7 @@ body.tour #intBadge,body.tour .askloc{display:none!important}
     requestAnimationFrame(tick)}
   V.addEventListener('ended',function(){ended=true;P.classList.add('bloom');if(loaded)setTimeout(finish,1600);else P.classList.add('wait')});
   V.addEventListener('error',function(){ended=true;P.classList.add('bloom');setTimeout(finish,1200)});
-  function finish(){if(done)return;if(!loaded){ended=true;P.classList.add('bloom','wait');try{V.pause()}catch(e){}return}
+  function finish(){if(EMB)tell({a:'stop'});if(done)return;if(!loaded){ended=true;P.classList.add('bloom','wait');try{V.pause()}catch(e){}return}
     done=true;try{V.pause()}catch(e){}P.classList.add('out');res();setTimeout(function(){P.remove();try{URL.revokeObjectURL(V.src)}catch(e){}},1300)}
   $('pSkip').onclick=finish;
   addEventListener('keydown',function(e){if(done)return;if(e.key==='Escape')finish();else if(e.key==='m'||e.key==='M'||e.key==='ء')$('ovSnd').click()});
@@ -9763,4 +9767,4 @@ html,body{max-width:100%;overflow-x:hidden}
  #intro.cx .brandc,#intro.cx #introSkip{top:14px}
  #vsPanel .vs-card{max-height:calc(100dvh - 24px);overflow:auto}
 }
-</style><script>(function(){var T='مكتب إدارة المشاريع PMO – المنطقة المركزية';function f(){if(document.title!==T)document.title=T}f();var n=0,i=setInterval(function(){f();if(++n>40)clearInterval(i)},500);addEventListener("load",f)})()</script><script>(function(){var B='20261115233026';try{fetch('../version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){if(j&&j.v&&j.v!==B){var k='pmoReload'+j.v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1')}catch(e){}location.reload()}}).catch(function(){})}catch(e){}})()</script></body></html>
+</style><script>(function(){var T='مكتب إدارة المشاريع PMO – المنطقة المركزية';function f(){if(document.title!==T)document.title=T}f();var n=0,i=setInterval(function(){f();if(++n>40)clearInterval(i)},500);addEventListener("load",f)})()</script><script>(function(){var B='20261115235448';try{fetch('../version.json?'+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){if(j&&j.v&&j.v!==B){var k='pmoReload'+j.v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1')}catch(e){}location.reload()}}).catch(function(){})}catch(e){}})()</script></body></html>

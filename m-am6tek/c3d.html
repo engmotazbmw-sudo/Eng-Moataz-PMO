@@ -450,7 +450,8 @@ body.tour #intBadge,body.tour .askloc{display:none!important}
   setTimeout(function(){var l=document.querySelector('.blogo'),b=$('pLogo');if(l&&b)b.src=l.src;else if(b)b.style.display='none'},40);
   var EMB=false;try{EMB=window.parent!==window}catch(e){}var AM=false;
   function post(m){try{m.ovAudio=1;parent.postMessage(m,'*')}catch(e){}}
-  addEventListener('message',function(e){if(e.data&&e.data.ovAudioBlocked){AM=true;setSnd()}});
+  addEventListener('message',function(e){if(!e.data)return;if(e.data.ovAudioBlocked){AM=true;setSnd()}if(e.data.ovAudioOk){AM=false;setSnd()}});
+  /* v66 · no unmute button needed: the first tap anywhere turns the sound on */ if(EMB)['pointerup','touchend','click','keydown'].forEach(function(x){addEventListener(x,function(ev){if(!AM||(ev.target&&ev.target.closest&&ev.target.closest('#ovSnd')))return;AM=false;post({a:'mute',m:false});post({a:'play',t:V.currentTime||0});setSnd()},true)});
   function setSnd(){var b=$('ovSnd'),m=EMB?AM:V.muted;b.classList.toggle('un',!m);b.querySelector('span').textContent=m?'تشغيل الصوت':'كتم الصوت'}
   function start(){P.classList.add('play');
     if(EMB){V.muted=true;setSnd();var p0=V.play();if(p0&&p0.then)p0.then(function(){$('ovPlay').hidden=true},function(){$('ovPlay').hidden=false});return}
