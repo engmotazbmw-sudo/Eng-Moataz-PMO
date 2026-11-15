@@ -489,18 +489,18 @@ body.tour #intBadge,body.tour .askloc{display:none!important}
   var done=false,ended=false,loaded=document.readyState==='complete',cur=-2;
   addEventListener('load',function(){loaded=true;if(ended)finish()});
   setTimeout(function(){var l=document.querySelector('.blogo'),b=$('pLogo');if(l&&b)b.src=l.src;else if(b)b.style.display='none'},40);
-  var EMB=false;try{EMB=window.parent!==window}catch(e){}var AM=false;
+  var EMB=false;try{EMB=window.parent!==window}catch(e){}var AM=true;
   function post(m){try{m.ovAudio=1;parent.postMessage(m,'*')}catch(e){}}
   addEventListener('message',function(e){if(!e.data)return;if(e.data.ovAudioBlocked){AM=true;setSnd()}if(e.data.ovAudioOk){AM=false;setSnd()}});
-  /* v66 · no unmute button needed: the first tap anywhere turns the sound on */ if(EMB)['pointerup','touchend','click','keydown'].forEach(function(x){addEventListener(x,function(ev){if(!AM||(ev.target&&ev.target.closest&&ev.target.closest('#ovSnd')))return;AM=false;post({a:'mute',m:false});post({a:'play',t:V.currentTime||0});setSnd()},true)});
-  function setSnd(){var b=$('ovSnd'),m=EMB?AM:V.muted;b.classList.toggle('un',!m);b.querySelector('span').textContent=m?'تشغيل الصوت':'كتم الصوت'}
+  /* v68 · inside the dashboard the opening stays silent until the sound button is tapped */
+  function setSnd(){var b=$('ovSnd'),m=V.muted;b.classList.toggle('un',!m);b.querySelector('span').textContent=m?'تشغيل الصوت':'كتم الصوت'}
   function start(){P.classList.add('play');
     if(EMB){V.muted=true;setSnd();var p0=V.play();if(p0&&p0.then)p0.then(function(){$('ovPlay').hidden=true},function(){$('ovPlay').hidden=false});return}
     V.muted=false;V.volume=1;setSnd();var p=V.play();
     if(p&&p.catch)p.catch(function(){V.muted=true;setSnd();var p2=V.play();if(p2&&p2.catch)p2.catch(function(){$('ovPlay').hidden=false})})}
-  var unm=function(){if(ended)return;if(EMB){if(AM){AM=false;post({a:'mute',m:false});setSnd()}}else if(V.muted&&!V.paused){V.muted=false;setSnd()}};(function(){var evs=['pointerup','touchend','click','keydown','mousedown'];function h(e){if(e&&e.target&&e.target.closest&&e.target.closest('#ovSnd')){off();return}off();unm()}function off(){evs.forEach(function(x){removeEventListener(x,h,true)})}evs.forEach(function(x){addEventListener(x,h,true)})})();
+  var unm=function(){if(ended)return;if(EMB){}else if(V.muted&&!V.paused){V.muted=false;setSnd()}};(function(){var evs=['pointerup','touchend','click','keydown','mousedown'];function h(e){if(e&&e.target&&e.target.closest&&e.target.closest('#ovSnd')){off();return}off();unm()}function off(){evs.forEach(function(x){removeEventListener(x,h,true)})}evs.forEach(function(x){addEventListener(x,h,true)})})();
   $('ovPlay').onclick=function(){this.hidden=true;AM=false;start()};
-  $('ovSnd').onclick=function(e){e.stopPropagation();if(EMB){AM=!AM;post({a:'mute',m:AM,t:V.currentTime||0})}else{V.muted=!V.muted;if(V.paused&&!ended)V.play()}setSnd()};
+  $('ovSnd').onclick=function(e){e.stopPropagation();V.muted=!V.muted;if(V.paused&&!ended)V.play();setSnd()};
   function tick(){if(done)return;var t=V.currentTime||0,d=V.duration||16;
     $('ovBar').style.width=Math.min(100,t/d*100)+'%';
     $('ovTitle').classList.toggle('on',t>=TITLE[0]&&t<TITLE[1]);
@@ -508,7 +508,7 @@ body.tour #intBadge,body.tour .askloc{display:none!important}
     if(bi!==cur){cur=bi;var lt=$('ovLt');lt.classList.remove('on');if(bi>=0){$('ovNo').textContent=AD('0'+(bi+1));$('ovLtT').textContent=BEATS[bi][2];$('ovLtS').textContent=BEATS[bi][3];void lt.offsetWidth;lt.classList.add('on')}}
     if(t>d-.75&&!P.classList.contains('bloom'))P.classList.add('bloom');
     requestAnimationFrame(tick)}
-  V.addEventListener('playing',function(){if(EMB&&!done)post({a:'play',t:V.currentTime||0})});setInterval(function(){if(EMB&&!done&&!V.paused)post({a:'sync',t:V.currentTime})},1000);V.addEventListener('pause',function(){if(EMB&&!done&&!V.ended)post({a:'stop'})});V.addEventListener('ended',function(){ended=true;P.classList.add('bloom');if(loaded)setTimeout(finish,1600);else P.classList.add('wait')});
+  setInterval(function(){if(EMB&&!done&&!V.paused)post({a:'sync',t:V.currentTime})},1000);V.addEventListener('pause',function(){if(EMB&&!done&&!V.ended)post({a:'stop'})});V.addEventListener('ended',function(){ended=true;P.classList.add('bloom');if(loaded)setTimeout(finish,1600);else P.classList.add('wait')});
   V.addEventListener('error',function(){ended=true;P.classList.add('bloom');setTimeout(finish,1200)});
   function finish(){if(done)return;post&&post({a:'stop'});if(!loaded){ended=true;P.classList.add('bloom','wait');try{V.pause()}catch(e){}return}
     done=true;try{V.pause()}catch(e){}P.classList.add('out');res();setTimeout(function(){P.remove();try{URL.revokeObjectURL(V.src)}catch(e){}},1300)}
@@ -8521,7 +8521,7 @@ function famMat(d,onload){const m=new THREE.MeshStandardMaterial({roughness:.85,
   const ready=EMB?Promise.resolve(true):(window.__PIMO_A?Promise.resolve(true):fetch(SRC,{method:'HEAD',cache:'no-store'}).then(r=>r.ok).catch(()=>false));
   ready.then(ok=>{if(!ok&&EMB){return new Promise(res=>{const h=e=>{if(e.data&&e.data.pimoOk!==undefined){removeEventListener('message',h);res(!!e.data.pimoOk)}};addEventListener('message',h);try{parent.postMessage({ovAudio:1,a:'pimoAsk'},'*')}catch(_){}setTimeout(()=>res(false),4000)})}return ok}).then(ok=>{
     if(!ok){G.visible=false;return}
-    const iv=setInterval(()=>{if(started)return clearInterval(iv);if(introOver()){started=true;clearInterval(iv);setTimeout(play,1400)}},500);
+    const iv=setInterval(()=>{if(started)return clearInterval(iv);if(introOver()){started=true;clearInterval(iv);setTimeout(()=>{if(EMB)stop(true);else play()},1400)}},500);
   });
 })()}catch(e){console.warn('PIMO guide',e)}
 
