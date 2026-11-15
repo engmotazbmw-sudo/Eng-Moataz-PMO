@@ -7,9 +7,10 @@ var ctx=null,q=[],cur=null,fails=0,off=(function(){var h=location.hostname,p=loc
 window.__fahad={on:function(){return !off},queue:q};
 function C(){if(!ctx){var A=window.AudioContext||window.webkitAudioContext;if(!A)return null;try{ctx=new A({sampleRate:24000})}catch(e){ctx=new A()}}return ctx}
 ['pointerup','touchend','click','keydown'].forEach(function(ev){addEventListener(ev,function(){var c=C();if(c&&c.state==='suspended'&&!paused)c.resume()},true)});
-function fire(u,type){try{var e;try{e=new SpeechSynthesisEvent(type,{utterance:u,charIndex:0,elapsedTime:0})}catch(x){e=new Event(type)}if(typeof u['on'+type]==='function')u['on'+type](e);u.dispatchEvent&&u.dispatchEvent(e)}catch(x){}}
+function fire(u,type){try{var e;try{e=new SpeechSynthesisEvent(type,{utterance:u,charIndex:0,elapsedTime:0})}catch(x){e=new Event(type)}var ok=false;try{if(u.dispatchEvent){u.dispatchEvent(e);ok=true}}catch(x){}if(!ok&&typeof u['on'+type]==='function')u['on'+type](e)}catch(x){}}
 function arabic(u){return /[؀-ۿ]/.test(u.text||'')||/^ar/i.test(u.lang||'')}
-function next(){if(cur||!q.length)return;var u=q.shift();if(off||!arabic(u)||!C()){oSpeak(u);return next()}play(u)}
+function next(){if(cur||!q.length)return;var u=q.shift();var c=off||!arabic(u)?null:C();if(!c){oSpeak(u);return next()}
+  if(c.state!=='running'){cur={wait:1};try{c.resume()}catch(e){}setTimeout(function(){cur=null;if(c.state==='running')play(u);else{oSpeak(u);next()}},350);return}play(u)}
 function play(u){var c=C(),job={u:u,src:[],t:0,got:false,resp:false,done:false,ws:null,started:false};cur=job;
   var finish=function(fallback){if(job.done)return;job.done=true;clearTimeout(job.wd);try{job.ws&&job.ws.close()}catch(e){}cur=null;
     if(fallback){fails++;if(fails>=2)off=true;oSpeak(u)}else{fails=0;fire(u,'end')}setTimeout(next,0)};
