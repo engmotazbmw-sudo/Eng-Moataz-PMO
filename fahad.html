@@ -1,4 +1,4 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>.</title></head><body><script>/* v75 · Fahad voice (desktop offline: the audio is played by the page itself) · v70 · Fahad voice for every PIMO answer: works on iPhone (audio element path, ignores the silent switch), after the mic, and in the offline files (through a small relay page on the site); no key in the page */
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>.</title></head><body><script>/* v76 · Fahad is the default voice on desktop too · v75 · Fahad voice (desktop offline: the audio is played by the page itself) · v70 · Fahad voice for every PIMO answer: works on iPhone (audio element path, ignores the silent switch), after the mic, and in the offline files (through a small relay page on the site); no key in the page */
 (function(){if(window.__fahad)return;
 var AGENT='agent_2401m7ghp98bfy3spgn3pvtsv9we',RELAY='https://engmotazbmw-sudo.github.io/Eng-Moataz-PMO/fahad.html';
 var IS_RELAY=/\/fahad\.html$/.test(location.pathname);
@@ -13,7 +13,11 @@ function wav(pcm){var n=pcm.length,b=new ArrayBuffer(44+n*2),v=new DataView(b),w
   new Int16Array(b,44).set(pcm);return URL.createObjectURL(new Blob([b],{type:'audio/wav'}))}
 function unlock(){try{var A=window.AudioContext||window.webkitAudioContext;if(A&&!AC)AC=new A();if(AC){if(AC.state!=='running')AC.resume();var s=AC.createBufferSource();s.buffer=AC.createBuffer(1,1,22050);s.connect(AC.destination);s.start(0)}}catch(e){}
   try{if(!EL){EL=new Audio();EL.setAttribute('playsinline','');EL.preload='auto'}if(!unlocked){EL.src=silentWav();var p=EL.play();if(p&&p.then)p.then(function(){unlocked=true},function(){})}}catch(e){}}
-['pointerdown','pointerup','touchend','click','keydown'].forEach(function(ev){addEventListener(ev,unlock,true)});
+function reg(){['pointerdown','pointerup','touchend','click','keydown'].forEach(function(ev){addEventListener(ev,unlock,true)})}
+reg();try{var ri=setInterval(reg,1500);setTimeout(function(){clearInterval(ri)},180000)}catch(e){}addEventListener('load',reg);
+/* Fahad is the default voice: switch off the old local edge-tts option and any saved key so every answer comes here */
+try{if(!IS_RELAY){localStorage.setItem('pimo.edge','0');localStorage.removeItem('pimo.elkey')}}catch(e){}
+function warm(){try{var A=window.AudioContext||window.webkitAudioContext;if(A&&!AC)AC=new A();if(AC&&AC.state!=='running')AC.resume()}catch(e){}}
 /* ---------- transport: the agent's WebSocket (only from the site's own origin) ---------- */
 function wsTx(text,h){var ws,closed=false,gotAny=false,ended=false;var T={close:function(){closed=true;try{ws&&ws.close()}catch(e){}}};
   try{ws=new WebSocket('wss://api.elevenlabs.io/v1/convai/conversation?agent_id='+AGENT)}catch(e){setTimeout(h.fail,0);return T}
@@ -34,6 +38,7 @@ function say(text,vol,on,src){ // on.start(), on.end(), on.fail()
   job.pause=function(){if(job.mode==='ac'&&AC)AC.suspend();else if(job.mode==='el')EL.pause()};
   job.resume=function(){if(job.mode==='ac'&&AC)AC.resume();else if(job.mode==='el'&&job.playing)EL.play()};
   job.wd=setTimeout(function(){if(!job.got)finish(false)},9000);
+  warm();
   function pickMode(){if(job.mode)return;job.mode=(AC&&AC.state==='running')?'ac':'el'}
   function started(){if(!job.got){job.got=true;on.start()}}
   // Web Audio path
