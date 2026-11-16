@@ -1,4 +1,4 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>.</title></head><body><script>/* v70 · Fahad voice for every PIMO answer: works on iPhone (audio element path, ignores the silent switch), after the mic, and in the offline files (through a small relay page on the site); no key in the page */
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>.</title></head><body><script>/* v75 · Fahad voice (desktop offline: the audio is played by the page itself) · v70 · Fahad voice for every PIMO answer: works on iPhone (audio element path, ignores the silent switch), after the mic, and in the offline files (through a small relay page on the site); no key in the page */
 (function(){if(window.__fahad)return;
 var AGENT='agent_2401m7ghp98bfy3spgn3pvtsv9we',RELAY='https://engmotazbmw-sudo.github.io/Eng-Moataz-PMO/fahad.html';
 var IS_RELAY=/\/fahad\.html$/.test(location.pathname);
@@ -14,8 +14,20 @@ function wav(pcm){var n=pcm.length,b=new ArrayBuffer(44+n*2),v=new DataView(b),w
 function unlock(){try{var A=window.AudioContext||window.webkitAudioContext;if(A&&!AC)AC=new A();if(AC){if(AC.state!=='running')AC.resume();var s=AC.createBufferSource();s.buffer=AC.createBuffer(1,1,22050);s.connect(AC.destination);s.start(0)}}catch(e){}
   try{if(!EL){EL=new Audio();EL.setAttribute('playsinline','');EL.preload='auto'}if(!unlocked){EL.src=silentWav();var p=EL.play();if(p&&p.then)p.then(function(){unlocked=true},function(){})}}catch(e){}}
 ['pointerdown','pointerup','touchend','click','keydown'].forEach(function(ev){addEventListener(ev,unlock,true)});
+/* ---------- transport: the agent's WebSocket (only from the site's own origin) ---------- */
+function wsTx(text,h){var ws,closed=false,gotAny=false,ended=false;var T={close:function(){closed=true;try{ws&&ws.close()}catch(e){}}};
+  try{ws=new WebSocket('wss://api.elevenlabs.io/v1/convai/conversation?agent_id='+AGENT)}catch(e){setTimeout(h.fail,0);return T}
+  ws.onopen=function(){ws.send(JSON.stringify({type:'conversation_initiation_client_data'}))};
+  ws.onmessage=function(ev){if(closed)return;var m;try{m=JSON.parse(ev.data)}catch(e){return}
+    if(m.type==='conversation_initiation_metadata')ws.send(JSON.stringify({type:'user_message',text:String(text||'').trim()}));
+    else if(m.type==='ping'){try{ws.send(JSON.stringify({type:'pong',event_id:m.ping_event.event_id}))}catch(e){}}
+    else if(m.type==='audio'){var b=atob(m.audio_event.audio_base_64),n=b.length>>1;if(!n)return;var pcm=new Int16Array(n);for(var i=0;i<n;i++){var v=b.charCodeAt(2*i)|(b.charCodeAt(2*i+1)<<8);pcm[i]=v>32767?v-65536:v}gotAny=true;h.pcm(pcm)}
+    else if(m.type==='agent_response'){setTimeout(function(){if(!ended){ended=true;h.done()}},450)}};
+  ws.onerror=function(){if(!gotAny&&!ended){ended=true;h.fail()}};
+  ws.onclose=function(){if(closed||ended)return;ended=true;if(gotAny)h.done();else h.fail()};
+  return T}
 /* ---------- one utterance ---------- */
-function say(text,vol,on){ // on.start(), on.end(), on.fail()
+function say(text,vol,on,src){ // on.start(), on.end(), on.fail()
   var job={done:false,got:false,resp:false,pcm:[],queued:0,t:0,mode:null,src:[],playing:false,ws:null},vol1=vol==null?1:Math.max(0,Math.min(1,vol));
   function finish(ok){if(job.done)return;job.done=true;clearTimeout(job.wd);try{job.ws&&job.ws.close()}catch(e){}if(ok)on.end();else on.fail(job.got)}
   job.stop=function(){job.src.forEach(function(s){try{s.stop()}catch(e){}});try{if(job.mode==='el'){EL.pause()}}catch(e){}job.done=true;clearTimeout(job.wd);try{job.ws&&job.ws.close()}catch(e){}};
@@ -33,24 +45,19 @@ function say(text,vol,on){ // on.start(), on.end(), on.fail()
     if(!EL){EL=new Audio();EL.setAttribute('playsinline','')}var u=wav(all);EL.onended=function(){job.playing=false;URL.revokeObjectURL(u);elFlush(true)};EL.volume=vol1;EL.src=u;job.playing=true;
     var p=EL.play();if(p&&p.then)p.then(started,function(){job.playing=false;finish(false)});else started()}
   function check(){if(job.done||!job.resp)return;if(job.mode==='ac'){if(AC.currentTime>=job.t-.03)setTimeout(function(){if(!job.done&&AC.currentTime>=job.t-.03)finish(true)},600)}else elFlush(true)}
-  var ws;try{ws=new WebSocket('wss://api.elevenlabs.io/v1/convai/conversation?agent_id='+AGENT)}catch(e){finish(false);return job}job.ws=ws;
-  ws.onopen=function(){ws.send(JSON.stringify({type:'conversation_initiation_client_data'}))};
-  ws.onmessage=function(ev){if(job.done)return;var m;try{m=JSON.parse(ev.data)}catch(e){return}
-    if(m.type==='conversation_initiation_metadata')ws.send(JSON.stringify({type:'user_message',text:String(text||'').trim()}));
-    else if(m.type==='ping'){try{ws.send(JSON.stringify({type:'pong',event_id:m.ping_event.event_id}))}catch(e){}}
-    else if(m.type==='audio'){var b=atob(m.audio_event.audio_base_64),n=b.length>>1;if(!n)return;var pcm=new Int16Array(n);for(var i=0;i<n;i++){var v=b.charCodeAt(2*i)|(b.charCodeAt(2*i+1)<<8);pcm[i]=v>32767?v-65536:v}
-      pickMode();if(job.mode==='ac')acChunk(pcm);else{job.pcm.push(pcm);elFlush(false)}}
-    else if(m.type==='agent_response'){setTimeout(function(){job.resp=true;check()},450)}};
-  ws.onerror=function(){if(!job.got)finish(false)};
-  ws.onclose=function(){if(!job.got&&!job.pcm.length)finish(false);else{job.resp=true;check()}};
+  job.ws={close:function(){}};
+  var tr=(src||wsTx)(text,{pcm:function(pcm){if(job.done)return;pickMode();if(job.mode==='ac')acChunk(pcm);else{job.pcm.push(pcm);elFlush(false)}},
+    done:function(){if(job.done)return;job.resp=true;check()},fail:function(){if(!job.got&&!job.pcm.length)finish(false);else{job.resp=true;check()}}});
+  job.ws=tr;
   return job}
 /* ---------- relay page (used by the offline files) ---------- */
 if(IS_RELAY){var okAnc=function(){try{var a=location.ancestorOrigins;if(!a)return true;for(var i=0;i<a.length;i++)if(!/^(null|file:\/\/|https:\/\/engmotazbmw-sudo\.github\.io)$/.test(a[i]))return false;return true}catch(e){return true}}();
   var jobs={};addEventListener('message',function(e){var d=e.data;if(!d||!d.fahad||!okAnc)return;var src=e.source,id=d.id;
     var post=function(t,x){try{src.postMessage({fahadR:t,id:id,x:x},'*')}catch(_){}};
+    if(d.fahad==='tx'){jobs[id]=wsTx(d.text,{pcm:function(p){try{src.postMessage({fahadR:'pcm',id:id,x:p.buffer},'*',[p.buffer])}catch(_){}},done:function(){delete jobs[id];post('done')},fail:function(){delete jobs[id];post('fail')}});return}
     if(d.fahad==='say')jobs[id]=say(d.text,d.vol,{start:function(){post('start')},end:function(){delete jobs[id];post('end')},fail:function(g){delete jobs[id];post('fail',g)}});
-    else if(d.fahad==='stop'){for(var k in jobs)jobs[k].stop();jobs={}}
-    else if(d.fahad==='pause'){for(var k2 in jobs)jobs[k2].pause()}else if(d.fahad==='resume'){for(var k3 in jobs)jobs[k3].resume()}
+    else if(d.fahad==='stop'){for(var k in jobs){try{(jobs[k].stop||jobs[k].close)()}catch(_){}}jobs={}}
+    else if(d.fahad==='pause'){for(var k2 in jobs)jobs[k2].pause&&jobs[k2].pause()}else if(d.fahad==='resume'){for(var k3 in jobs)jobs[k3].resume&&jobs[k3].resume()}
     else if(d.fahad==='unlock')unlock()});
   try{parent.postMessage({fahadR:'ready'},'*')}catch(e){}
   window.__fahad={relay:true};return}
@@ -63,19 +70,18 @@ if(!DIRECT){ // offline file or another host: speak through the relay page on th
   try{RF=document.createElement('iframe');RF.src=RELAY;RF.allow='autoplay';RF.setAttribute('aria-hidden','true');RF.tabIndex=-1;RF.style.cssText='position:fixed;width:1px;height:1px;left:-9px;top:-9px;opacity:0;border:0;pointer-events:none';
     var add=function(){(document.body||document.documentElement).appendChild(RF)};if(document.body)add();else addEventListener('DOMContentLoaded',add);
     addEventListener('message',function(e){var d=e.data;if(!d||!d.fahadR||e.source!==RF.contentWindow)return;if(d.fahadR==='ready'){rReady=true;return}var j=rjobs[d.id];if(!j)return;
-      if(d.fahadR==='start')j.on.start();else if(d.fahadR==='end'){delete rjobs[d.id];j.on.end()}else if(d.fahadR==='fail'){delete rjobs[d.id];j.on.fail(d.x)}});
+      if(d.fahadR==='pcm')j.pcm(new Int16Array(d.x));else if(d.fahadR==='done'){delete rjobs[d.id];j.done()}else if(d.fahadR==='fail'){delete rjobs[d.id];j.fail()}});
     ['pointerup','touchend','click','keydown'].forEach(function(ev){addEventListener(ev,function(){try{rReady&&RF.contentWindow.postMessage({fahad:'unlock'},'*')}catch(e){}},true)});
   }catch(e){off=true}}
-function rsay(text,vol,on){var id=++rid,w=RF&&RF.contentWindow;var j={on:on,stop:function(){try{w.postMessage({fahad:'stop'},'*')}catch(e){}},pause:function(){try{w.postMessage({fahad:'pause'},'*')}catch(e){}},resume:function(){try{w.postMessage({fahad:'resume'},'*')}catch(e){}}};
-  if(!rReady||!w){setTimeout(function(){on.fail(false)},0);return j}rjobs[id]=j;try{w.postMessage({fahad:'say',id:id,text:text,vol:vol},'*')}catch(e){delete rjobs[id];setTimeout(function(){on.fail(false)},0)}
-  setTimeout(function(){if(rjobs[id]&&!j.st){delete rjobs[id];on.fail(false)}},10000);var s0=on.start;on.start=function(){j.st=1;s0()};return j}
+function relayTx(text,h){var id=++rid,w=RF&&RF.contentWindow;var T={close:function(){delete rjobs[id];try{w.postMessage({fahad:'stop'},'*')}catch(e){}}};
+  if(!rReady||!w){setTimeout(h.fail,0);return T}rjobs[id]=h;try{w.postMessage({fahad:'tx',id:id,text:text},'*')}catch(e){delete rjobs[id];setTimeout(h.fail,0)}return T}
 function fire(u,type){try{var e;try{e=new SpeechSynthesisEvent(type,{utterance:u,charIndex:0,elapsedTime:0})}catch(x){e=new Event(type)}var ok=false;try{if(u.dispatchEvent){u.dispatchEvent(e);ok=true}}catch(x){}if(!ok&&typeof u['on'+type]==='function')u['on'+type](e)}catch(x){}}
 function arabic(u){return /[؀-ۿ]/.test(u.text||'')||/^ar/i.test(u.lang||'')}
 function next(){if(cur||!q.length)return;var u=q.shift();if(off||!arabic(u)){oSpeak(u);return next()}
   var c={u:u,started:false};cur=c;var on={start:function(){if(cur!==c)return;c.started=true;fire(u,'start')},
     end:function(){if(cur!==c)return;fails=0;cur=null;fire(u,'end');setTimeout(next,0)},
     fail:function(got){if(cur!==c)return;cur=null;if(got){fire(u,'end')}else{if(++fails>=3)off=true;oSpeak(u)}setTimeout(next,0)}};
-  c.job=DIRECT?say(u.text,u.volume,on):rsay(u.text,u.volume,on)}
+  c.job=say(u.text,u.volume,on,DIRECT?wsTx:relayTx)}
 SS.speak=function(u){q.push(u);next()};
 SS.cancel=function(){q.length=0;if(cur){var c=cur;cur=null;try{c.job&&c.job.stop()}catch(e){}if(c.started)fire(c.u,'end')}paused=false;oCancel()};
 SS.pause=function(){if(cur){paused=true;try{cur.job.pause()}catch(e){}}else oPause()};
