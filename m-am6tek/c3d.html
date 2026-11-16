@@ -1,45 +1,91 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><script id="v67fahad">/* v67 · every PIMO answer in Fahad's voice (ElevenLabs), without any key in the page: the text goes to a public read-only ElevenLabs agent that only repeats it, locked to this site. Falls back to the browser voice if the service is unreachable. */
-(function(){if(window.__fahad||!window.speechSynthesis||!window.WebSocket)return;
-var AGENT='agent_2401m7ghp98bfy3spgn3pvtsv9we',SS=window.speechSynthesis,P=Object.getPrototypeOf(SS);
-var oSpeak=SS.speak.bind(SS),oCancel=SS.cancel.bind(SS),oPause=SS.pause.bind(SS),oResume=SS.resume.bind(SS);
-var gS=Object.getOwnPropertyDescriptor(P,'speaking'),gP=Object.getOwnPropertyDescriptor(P,'pending'),gU=Object.getOwnPropertyDescriptor(P,'paused');
-var ctx=null,q=[],cur=null,fails=0,off=(function(){var h=location.hostname,p=location.protocol;try{if(p==='about:'){h=parent.location.hostname;p=parent.location.protocol}}catch(e){}return p==='file:'||!/github\.io$/.test(h)})(),paused=false;
-window.__fahad={on:function(){return !off},queue:q};
-function C(){if(!ctx){var A=window.AudioContext||window.webkitAudioContext;if(!A)return null;try{ctx=new A({sampleRate:24000})}catch(e){ctx=new A()}}return ctx}
-['pointerup','touchend','click','keydown'].forEach(function(ev){addEventListener(ev,function(){var c=C();if(c&&c.state==='suspended'&&!paused)c.resume()},true)});
-function fire(u,type){try{var e;try{e=new SpeechSynthesisEvent(type,{utterance:u,charIndex:0,elapsedTime:0})}catch(x){e=new Event(type)}var ok=false;try{if(u.dispatchEvent){u.dispatchEvent(e);ok=true}}catch(x){}if(!ok&&typeof u['on'+type]==='function')u['on'+type](e)}catch(x){}}
-function arabic(u){return /[؀-ۿ]/.test(u.text||'')||/^ar/i.test(u.lang||'')}
-function next(){if(cur||!q.length)return;var u=q.shift();var c=off||!arabic(u)?null:C();if(!c){oSpeak(u);return next()}
-  if(c.state!=='running'){cur={wait:1};try{c.resume()}catch(e){}setTimeout(function(){cur=null;if(c.state==='running')play(u);else{oSpeak(u);next()}},350);return}play(u)}
-function play(u){var c=C(),job={u:u,src:[],t:0,got:false,resp:false,done:false,ws:null,started:false};cur=job;
-  var finish=function(fallback){if(job.done)return;job.done=true;clearTimeout(job.wd);try{job.ws&&job.ws.close()}catch(e){}cur=null;
-    if(fallback){fails++;if(fails>=2)off=true;oSpeak(u)}else{fails=0;fire(u,'end')}setTimeout(next,0)};
-  job.finish=finish;
-  job.wd=setTimeout(function(){if(!job.got)finish(true)},8000);   // no voice within 8 s: use the browser voice for this answer
-  var ws;try{ws=new WebSocket('wss://api.elevenlabs.io/v1/convai/conversation?agent_id='+AGENT)}catch(e){return finish(true)}job.ws=ws;
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><script id="v70fahad">/* v70 · Fahad voice for every PIMO answer: works on iPhone (audio element path, ignores the silent switch), after the mic, and in the offline files (through a small relay page on the site); no key in the page */
+(function(){if(window.__fahad)return;
+var AGENT='agent_2401m7ghp98bfy3spgn3pvtsv9we',RELAY='https://engmotazbmw-sudo.github.io/Eng-Moataz-PMO/fahad.html';
+var IS_RELAY=/\/fahad\.html$/.test(location.pathname);
+var host=location.hostname,proto=location.protocol;try{if(proto==='about:'||proto==='blob:'){host=parent.location.hostname;proto=parent.location.protocol}}catch(e){}
+var DIRECT=proto==='https:'&&/github\.io$/.test(host);
+/* ---------- audio output: Web Audio when it runs, otherwise an unlocked <audio> element ---------- */
+var AC=null,EL=null,unlocked=false;
+try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}
+function silentWav(){return wav(new Int16Array(240))}
+function wav(pcm){var n=pcm.length,b=new ArrayBuffer(44+n*2),v=new DataView(b),w=function(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,24000,true);v.setUint32(28,48000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+  new Int16Array(b,44).set(pcm);return URL.createObjectURL(new Blob([b],{type:'audio/wav'}))}
+function unlock(){try{var A=window.AudioContext||window.webkitAudioContext;if(A&&!AC)AC=new A();if(AC){if(AC.state!=='running')AC.resume();var s=AC.createBufferSource();s.buffer=AC.createBuffer(1,1,22050);s.connect(AC.destination);s.start(0)}}catch(e){}
+  try{if(!EL){EL=new Audio();EL.setAttribute('playsinline','');EL.preload='auto'}if(!unlocked){EL.src=silentWav();var p=EL.play();if(p&&p.then)p.then(function(){unlocked=true},function(){})}}catch(e){}}
+['pointerdown','pointerup','touchend','click','keydown'].forEach(function(ev){addEventListener(ev,unlock,true)});
+/* ---------- one utterance ---------- */
+function say(text,vol,on){ // on.start(), on.end(), on.fail()
+  var job={done:false,got:false,resp:false,pcm:[],queued:0,t:0,mode:null,src:[],playing:false,ws:null},vol1=vol==null?1:Math.max(0,Math.min(1,vol));
+  function finish(ok){if(job.done)return;job.done=true;clearTimeout(job.wd);try{job.ws&&job.ws.close()}catch(e){}if(ok)on.end();else on.fail(job.got)}
+  job.stop=function(){job.src.forEach(function(s){try{s.stop()}catch(e){}});try{if(job.mode==='el'){EL.pause()}}catch(e){}job.done=true;clearTimeout(job.wd);try{job.ws&&job.ws.close()}catch(e){}};
+  job.pause=function(){if(job.mode==='ac'&&AC)AC.suspend();else if(job.mode==='el')EL.pause()};
+  job.resume=function(){if(job.mode==='ac'&&AC)AC.resume();else if(job.mode==='el'&&job.playing)EL.play()};
+  job.wd=setTimeout(function(){if(!job.got)finish(false)},9000);
+  function pickMode(){if(job.mode)return;job.mode=(AC&&AC.state==='running')?'ac':'el'}
+  function started(){if(!job.got){job.got=true;on.start()}}
+  // Web Audio path
+  function acChunk(pcm){var buf=AC.createBuffer(1,pcm.length,24000),d=buf.getChannelData(0);for(var i=0;i<pcm.length;i++)d[i]=pcm[i]/32768;
+    var s=AC.createBufferSource(),g=AC.createGain();g.gain.value=vol1;s.buffer=buf;s.connect(g);g.connect(AC.destination);var at=Math.max(AC.currentTime+.05,job.t);s.start(at);job.t=at+buf.duration;job.src.push(s);s.onended=check;started()}
+  // <audio> element path: plays the answer in segments
+  function elFlush(force){if(job.playing||job.done)return;var n=0;job.pcm.forEach(function(a){n+=a.length});if(!n){if(job.resp)finish(true);return}
+    if(!force&&!job.resp&&n<24000*1.6)return;var all=new Int16Array(n),o=0;job.pcm.forEach(function(a){all.set(a,o);o+=a.length});job.pcm=[];
+    if(!EL){EL=new Audio();EL.setAttribute('playsinline','')}var u=wav(all);EL.onended=function(){job.playing=false;URL.revokeObjectURL(u);elFlush(true)};EL.volume=vol1;EL.src=u;job.playing=true;
+    var p=EL.play();if(p&&p.then)p.then(started,function(){job.playing=false;finish(false)});else started()}
+  function check(){if(job.done||!job.resp)return;if(job.mode==='ac'){if(AC.currentTime>=job.t-.03)setTimeout(function(){if(!job.done&&AC.currentTime>=job.t-.03)finish(true)},600)}else elFlush(true)}
+  var ws;try{ws=new WebSocket('wss://api.elevenlabs.io/v1/convai/conversation?agent_id='+AGENT)}catch(e){finish(false);return job}job.ws=ws;
   ws.onopen=function(){ws.send(JSON.stringify({type:'conversation_initiation_client_data'}))};
   ws.onmessage=function(ev){if(job.done)return;var m;try{m=JSON.parse(ev.data)}catch(e){return}
-    if(m.type==='conversation_initiation_metadata'){ws.send(JSON.stringify({type:'user_message',text:String(u.text||'').trim()}))}
+    if(m.type==='conversation_initiation_metadata')ws.send(JSON.stringify({type:'user_message',text:String(text||'').trim()}));
     else if(m.type==='ping'){try{ws.send(JSON.stringify({type:'pong',event_id:m.ping_event.event_id}))}catch(e){}}
-    else if(m.type==='audio'){var b=atob(m.audio_event.audio_base_64),n=b.length>>1;if(!n)return;var buf=c.createBuffer(1,n,24000),d=buf.getChannelData(0);
-      for(var i=0;i<n;i++){var v=b.charCodeAt(2*i)|(b.charCodeAt(2*i+1)<<8);if(v>32767)v-=65536;d[i]=v/32768}
-      var s=c.createBufferSource();s.buffer=buf;var g=c.createGain();g.gain.value=Math.max(0,Math.min(1,u.volume==null?1:u.volume));s.connect(g);g.connect(c.destination);
-      var at=Math.max(c.currentTime+.05,job.t);s.start(at);job.t=at+buf.duration;job.src.push(s);
-      if(!job.got){job.got=true;job.started=true;fire(u,'start')}
-      s.onended=function(){check()}}
-    else if(m.type==='agent_response'){job.resp=true;setTimeout(check,400)}};
-  ws.onerror=function(){if(!job.got)finish(true)};
-  ws.onclose=function(){if(!job.got)finish(true);else{job.resp=true;check()}};
-  function check(){if(job.done||!job.resp)return;if(c.currentTime>=job.t-.03){setTimeout(function(){if(!job.done&&c.currentTime>=job.t-.03)finish(false)},700)}}
-}
+    else if(m.type==='audio'){var b=atob(m.audio_event.audio_base_64),n=b.length>>1;if(!n)return;var pcm=new Int16Array(n);for(var i=0;i<n;i++){var v=b.charCodeAt(2*i)|(b.charCodeAt(2*i+1)<<8);pcm[i]=v>32767?v-65536:v}
+      pickMode();if(job.mode==='ac')acChunk(pcm);else{job.pcm.push(pcm);elFlush(false)}}
+    else if(m.type==='agent_response'){setTimeout(function(){job.resp=true;check()},450)}};
+  ws.onerror=function(){if(!job.got)finish(false)};
+  ws.onclose=function(){if(!job.got&&!job.pcm.length)finish(false);else{job.resp=true;check()}};
+  return job}
+/* ---------- relay page (used by the offline files) ---------- */
+if(IS_RELAY){var okAnc=function(){try{var a=location.ancestorOrigins;if(!a)return true;for(var i=0;i<a.length;i++)if(!/^(null|file:\/\/|https:\/\/engmotazbmw-sudo\.github\.io)$/.test(a[i]))return false;return true}catch(e){return true}}();
+  var jobs={};addEventListener('message',function(e){var d=e.data;if(!d||!d.fahad||!okAnc)return;var src=e.source,id=d.id;
+    var post=function(t,x){try{src.postMessage({fahadR:t,id:id,x:x},'*')}catch(_){}};
+    if(d.fahad==='say')jobs[id]=say(d.text,d.vol,{start:function(){post('start')},end:function(){delete jobs[id];post('end')},fail:function(g){delete jobs[id];post('fail',g)}});
+    else if(d.fahad==='stop'){for(var k in jobs)jobs[k].stop();jobs={}}
+    else if(d.fahad==='pause'){for(var k2 in jobs)jobs[k2].pause()}else if(d.fahad==='resume'){for(var k3 in jobs)jobs[k3].resume()}
+    else if(d.fahad==='unlock')unlock()});
+  try{parent.postMessage({fahadR:'ready'},'*')}catch(e){}
+  window.__fahad={relay:true};return}
+/* ---------- page shim: replaces the browser voice for Arabic text ---------- */
+if(!window.speechSynthesis)return;
+var SS=window.speechSynthesis,P=Object.getPrototypeOf(SS),oSpeak=SS.speak.bind(SS),oCancel=SS.cancel.bind(SS),oPause=SS.pause.bind(SS),oResume=SS.resume.bind(SS);
+var gS=Object.getOwnPropertyDescriptor(P,'speaking'),gP=Object.getOwnPropertyDescriptor(P,'pending'),gU=Object.getOwnPropertyDescriptor(P,'paused');
+var q=[],cur=null,fails=0,paused=false,off=false,RF=null,rReady=false,rid=0,rjobs={};
+if(!DIRECT){ // offline file or another host: speak through the relay page on the site
+  try{RF=document.createElement('iframe');RF.src=RELAY;RF.allow='autoplay';RF.setAttribute('aria-hidden','true');RF.tabIndex=-1;RF.style.cssText='position:fixed;width:1px;height:1px;left:-9px;top:-9px;opacity:0;border:0;pointer-events:none';
+    var add=function(){(document.body||document.documentElement).appendChild(RF)};if(document.body)add();else addEventListener('DOMContentLoaded',add);
+    addEventListener('message',function(e){var d=e.data;if(!d||!d.fahadR||e.source!==RF.contentWindow)return;if(d.fahadR==='ready'){rReady=true;return}var j=rjobs[d.id];if(!j)return;
+      if(d.fahadR==='start')j.on.start();else if(d.fahadR==='end'){delete rjobs[d.id];j.on.end()}else if(d.fahadR==='fail'){delete rjobs[d.id];j.on.fail(d.x)}});
+    ['pointerup','touchend','click','keydown'].forEach(function(ev){addEventListener(ev,function(){try{rReady&&RF.contentWindow.postMessage({fahad:'unlock'},'*')}catch(e){}},true)});
+  }catch(e){off=true}}
+function rsay(text,vol,on){var id=++rid,w=RF&&RF.contentWindow;var j={on:on,stop:function(){try{w.postMessage({fahad:'stop'},'*')}catch(e){}},pause:function(){try{w.postMessage({fahad:'pause'},'*')}catch(e){}},resume:function(){try{w.postMessage({fahad:'resume'},'*')}catch(e){}}};
+  if(!rReady||!w){setTimeout(function(){on.fail(false)},0);return j}rjobs[id]=j;try{w.postMessage({fahad:'say',id:id,text:text,vol:vol},'*')}catch(e){delete rjobs[id];setTimeout(function(){on.fail(false)},0)}
+  setTimeout(function(){if(rjobs[id]&&!j.st){delete rjobs[id];on.fail(false)}},10000);var s0=on.start;on.start=function(){j.st=1;s0()};return j}
+function fire(u,type){try{var e;try{e=new SpeechSynthesisEvent(type,{utterance:u,charIndex:0,elapsedTime:0})}catch(x){e=new Event(type)}var ok=false;try{if(u.dispatchEvent){u.dispatchEvent(e);ok=true}}catch(x){}if(!ok&&typeof u['on'+type]==='function')u['on'+type](e)}catch(x){}}
+function arabic(u){return /[؀-ۿ]/.test(u.text||'')||/^ar/i.test(u.lang||'')}
+function next(){if(cur||!q.length)return;var u=q.shift();if(off||!arabic(u)){oSpeak(u);return next()}
+  var c={u:u,started:false};cur=c;var on={start:function(){if(cur!==c)return;c.started=true;fire(u,'start')},
+    end:function(){if(cur!==c)return;fails=0;cur=null;fire(u,'end');setTimeout(next,0)},
+    fail:function(got){if(cur!==c)return;cur=null;if(got){fire(u,'end')}else{if(++fails>=3)off=true;oSpeak(u)}setTimeout(next,0)}};
+  c.job=DIRECT?say(u.text,u.volume,on):rsay(u.text,u.volume,on)}
 SS.speak=function(u){q.push(u);next()};
-SS.cancel=function(){q.length=0;if(cur){var j=cur;j.src.forEach(function(s){try{s.stop()}catch(e){}});j.done=true;clearTimeout(j.wd);try{j.ws&&j.ws.close()}catch(e){}cur=null;if(j.started)fire(j.u,'end')}paused=false;oCancel()};
-SS.pause=function(){if(cur&&ctx){paused=true;ctx.suspend()}else oPause()};
-SS.resume=function(){if(paused&&ctx){paused=false;ctx.resume()}else oResume()};
+SS.cancel=function(){q.length=0;if(cur){var c=cur;cur=null;try{c.job&&c.job.stop()}catch(e){}if(c.started)fire(c.u,'end')}paused=false;oCancel()};
+SS.pause=function(){if(cur){paused=true;try{cur.job.pause()}catch(e){}}else oPause()};
+SS.resume=function(){if(paused&&cur){paused=false;try{cur.job.resume()}catch(e){}}else{paused=false;oResume()}};
 try{Object.defineProperty(SS,'speaking',{configurable:true,get:function(){return !!cur||(gS?gS.get.call(SS):false)}});
   Object.defineProperty(SS,'pending',{configurable:true,get:function(){return q.length>0||(gP?gP.get.call(SS):false)}});
   Object.defineProperty(SS,'paused',{configurable:true,get:function(){return paused||(gU?gU.get.call(SS):false)}})}catch(e){}
-})();</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style><style id="v57walk">
+window.__fahad={on:function(){return !off},direct:DIRECT,queue:q};
+})();
+</script><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style><style id="v57walk">
 body.pro-walk.coarse #gpMove{left:auto!important;right:calc(20px + env(safe-area-inset-right,0px))!important}
 body.pro-walk.coarse #gpLook{right:auto!important;left:calc(20px + env(safe-area-inset-left,0px))!important}
 body.pro-walk.coarse #pwRun{left:auto!important;right:calc(124px + env(safe-area-inset-right,0px))!important}
