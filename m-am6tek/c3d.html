@@ -2861,7 +2861,7 @@ PLAN.li.forEach(([x,z])=>addOb(x,z,.45));PLAN.b.forEach(([x,z,L,W])=>addOb(x,z,M
 function free(x,z){
   if(!NAV){try{NAV=buildNav()}catch(e){return true}}
   const {X0,Z0,RS,W,H:HH,cost}=NAV,i=Math.round((x-X0)/RS),j=Math.round((z-Z0)/RS);
-  if(i<0||j<0||i>=W||j>=HH||!cost[j*W+i])return false;
+  if(i<0||j<0||i>=W||j>=HH||(!cost[j*W+i]&&!(window.__v71g&&window.__v71g(x,z))))return false;
   const l=OB.get(okey(Math.floor(x/OBC),Math.floor(z/OBC)));if(l)for(const [ox,oz,r] of l)if(Math.hypot(x-ox,z-oz)<r+.35)return false;
   return true}
 PRO.free=free;
@@ -8429,7 +8429,7 @@ function famMat(d,onload){const m=new THREE.MeshStandardMaterial({roughness:.85,
   setTimeout(()=>clearInterval(iv),90000);
 }catch(e){console.warn('v69b pimo',e)}})();
 
-/* v71 · free walking on the lawns in the free tour, flush lawn edging, a faster and more forgiving location fix */
+/* v71b · free walking on the lawns in the free tour, flush lawn edging, a faster and more forgiving location fix */
 (function(){try{
   // 1. free tour: lawns and planted beds are walkable too (water and buildings still stop you)
   let WG=null;
@@ -8437,18 +8437,16 @@ function famMat(d,onload){const m=new THREE.MeshStandardMaterial({roughness:.85,
     const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');g.setTransform(1/RS,0,0,1/RS,-X0/RS,-Z0/RS);
     const poly=r=>{g.beginPath();r.forEach(a=>{g.moveTo(a[0],a[1]);for(let i=2;i<a.length;i+=2)g.lineTo(a[i],a[i+1]);g.closePath()});g.fill('evenodd')};
     g.fillStyle='#fff';PLAN.f.forEach(f=>{if(f[0]==='grass'||f[0]==='plant'||f[0]==='gravel')poly(f.slice(1))});
-    g.fillStyle='#000';PLAN.pool.forEach(p=>poly([p[1]]));NAVBLK.forEach(([x,z,w,d,r])=>{g.save();g.translate(x,z);g.rotate(-r);g.fillRect(-w/2,-d/2,w,d);g.restore()});
+    g.fillStyle='#000';PLAN.pool.forEach(p=>poly([p[1]]));(typeof NAVBLK!=='undefined'?NAVBLK:[]).forEach(([x,z,w,d,r])=>{g.save();g.translate(x,z);g.rotate(-r);g.fillRect(-w/2,-d/2,w,d);g.restore()});
     const px=g.getImageData(0,0,W,H).data,m=new Uint8Array(W*H);for(let i=0;i<W*H;i++)m[i]=px[i*4]>128?1:0;return{X0,Z0,RS,W,H,m}}
-  const _free=free;
-  free=function(x,z){if(_free(x,z))return true;
-    try{if(!WG)WG=buildWG();const {X0,Z0,RS,W,H,m}=WG,i=Math.round((x-X0)/RS),j=Math.round((z-Z0)/RS);if(i<0||j<0||i>=W||j>=H||!m[j*W+i])return false;
-      const l=OB.get(okey(Math.floor(x/OBC),Math.floor(z/OBC)));if(l)for(const [ox,oz,r] of l)if(Math.hypot(x-ox,z-oz)<r+.35)return false;return true}catch(e){return false}};
-  try{PRO.free=free}catch(e){}
+  window.__v71g=function(x,z){try{if(!WG)WG=buildWG();const {X0,Z0,RS,W,H,m}=WG,i=Math.round((x-X0)/RS),j=Math.round((z-Z0)/RS);return !(i<0||j<0||i>=W||j>=H||!m[j*W+i])}catch(e){return false}};
+}catch(e){console.warn('v71 walk',e)}try{
   // 2. lawn edging sits flush with the grass instead of standing up as a grey wall
   setTimeout(function fl(){const e=scene.getObjectByName('r3_bed_edging');if(!e){if((fl.n=(fl.n||0)+1)<40)setTimeout(fl,500);return}
     const mm=new THREE.Matrix4(),p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3();
     for(let i=0;i<e.count;i++){e.getMatrixAt(i,mm);mm.decompose(p,q,s);s.y=.02;s.z=Math.min(s.z,.12);p.y=.14+.01;mm.compose(p,q,s);e.setMatrixAt(i,mm)}
     e.instanceMatrix.needsUpdate=true;e.material.color.set('#b9ad94');try{needs=Math.max(needs,2)}catch(_){}},800);
+}catch(e){console.warn('v71 edge',e)}try{
   // 3. location: a quick coarse fix seeds the precise watch, and the best fix is kept instead of giving up
   const _loc=locate;
   locate=function(onOk,onFail){let coarse=null,settled=false;
@@ -8458,6 +8456,7 @@ function famMat(d,onload){const m=new THREE.MeshStandardMaterial({roughness:.85,
         // give the coarse request a moment if it is still on its way
         setTimeout(()=>{if(settled)return;settled=true;if(coarse&&!(e&&e.code===1))onOk(coarse);else onFail(e)},coarse?0:2500)})};
 }catch(e){console.warn('v71',e)}})();
+
   // visitors: women and children on the plazas take the supplied models (same places, same scale, men unchanged)
   (function(){let tries=0;const iv=setInterval(()=>{if(++tries>200){clearInterval(iv);return}
     const W=scene.getObjectByName('r3_people_2'),B=scene.getObjectByName('r3_people_3'),Gi=scene.getObjectByName('r3_people_4');if(!W&&!B&&!Gi)return;clearInterval(iv);
